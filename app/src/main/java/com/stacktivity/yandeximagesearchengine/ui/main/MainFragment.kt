@@ -29,4 +29,10 @@ class MainFragment : Fragment() {
         viewModel = MainViewModel()
     }
 
+    fun showSearchResult(query: String) {
+        viewModel.fetchImages(query)
+
+        // TODO show images
+    }
+
 }

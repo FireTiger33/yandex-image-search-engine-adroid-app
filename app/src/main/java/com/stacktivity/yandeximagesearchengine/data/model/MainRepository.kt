@@ -6,8 +6,9 @@ import retrofit2.Callback
 import retrofit2.Response
 
 class MainRepository {
-    fun getRepoList(onResult: (isSuccess: Boolean, response: ImageData?) -> Unit) {
-        YandexImagesApi.instance.getJSONSearchResult(search = "Пример").enqueue(object : Callback<ImageData> {
+    fun getImageData(query: String, onResult: (isSuccess: Boolean, response: ImageData?) -> Unit) {
+        Regex("""\s+""").replace(query, "+")
+        YandexImagesApi.instance.getJSONSearchResult(search = query).enqueue(object : Callback<ImageData> {
             override fun onResponse(call: Call<ImageData>?, response: Response<ImageData>?) {
                 if (response != null && response.isSuccessful) {
                     onResult(true, response.body())

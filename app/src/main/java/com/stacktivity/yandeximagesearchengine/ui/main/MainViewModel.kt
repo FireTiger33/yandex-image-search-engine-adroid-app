@@ -10,9 +10,9 @@ import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 class MainViewModel : BaseViewModel() {
     val imageListLive = MutableLiveData<List<SerpItem>>()
 
-    fun fetchImages() {
+    fun fetchImages(query: String) {
         dataLoading.value = true
-        MainRepository.getInstance().getRepoList { isSuccess, response: ImageData? ->
+        MainRepository.getInstance().getImageData(query) { isSuccess, response: ImageData? ->
             dataLoading.value = false
             if (isSuccess) {
                 empty.value = false
