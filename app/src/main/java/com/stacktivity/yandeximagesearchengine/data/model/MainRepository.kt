@@ -6,9 +6,12 @@ import retrofit2.Callback
 import retrofit2.Response
 
 class MainRepository {
-    fun getImageData(query: String, onResult: (isSuccess: Boolean, response: ImageData?) -> Unit) {
+    private val imageList = ArrayList<SerpItem>()
+
+    fun getImageData(query: String, page: Int,
+                     onResult: (isSuccess: Boolean, response: ImageData?) -> Unit) {
         Regex("""\s+""").replace(query, "+")
-        YandexImagesApi.instance.getJSONSearchResult(search = query).enqueue(object : Callback<ImageData> {
+        YandexImagesApi.instance.getJSONSearchResult(search = query, page = page).enqueue(object : Callback<ImageData> {
             override fun onResponse(call: Call<ImageData>?, response: Response<ImageData>?) {
                 if (response != null && response.isSuccessful) {
                     onResult(true, response.body())
@@ -22,6 +25,14 @@ class MainRepository {
             }
         })
     }
+
+    fun getImageList(): ArrayList<SerpItem> = imageList
+
+    fun getImageCount(): Int = imageList.size
+
+    fun addToImageList(itemList: List<SerpItem>) = imageList.addAll(itemList)
+
+    fun clearImageList() = imageList.clear()
 
     companion object {
         private val tag = MainRepository::class.java.simpleName
