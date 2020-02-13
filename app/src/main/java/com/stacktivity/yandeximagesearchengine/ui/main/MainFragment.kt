@@ -1,5 +1,6 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
+import android.graphics.Point
 import android.os.Bundle
 import android.util.Log
 import androidx.fragment.app.Fragment
@@ -40,9 +41,11 @@ class MainFragment : Fragment() {
     }
 
     private fun setupImageList() {
-        Log.d("MainFragment", "setupImageList")
+        val size = Point()
+        activity!!.windowManager.defaultDisplay.getSize(size)
+        val masImageWidth = size.x
         image_list_rv.layoutManager = layoutManager
-        image_list_rv.adapter = viewModel.adapter
+        image_list_rv.adapter = viewModel.getImageItemListAdapter(masImageWidth)
         image_list_rv.addOnScrollListener(getImageScrollListener())
     }
 

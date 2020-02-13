@@ -1,5 +1,6 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.base.BaseViewModel
@@ -14,15 +15,20 @@ class MainViewModel : BaseViewModel() {
     private var currentQuery: String = ""
     private var isLastPage = false
 
-    private val imageList: ArrayList<SerpItem>
+    private val imageList: List<SerpItem>
         get() = MainRepository.getInstance().getImageList()
     private val imageCount: Int
         get() = MainRepository.getInstance().getImageCount()
 
-    val adapter = ImageListAdapter(object : ImageListAdapter.ContentProvider {
-        override fun getItemCount(): Int = imageCount
-        override fun getItemOnPosition(position: Int): SerpItem = imageList[position]
-    })
+    private var adapter: ImageListAdapter? = null
+
+    fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter = adapter
+        ?: ImageListAdapter(object : ImageListAdapter.ContentProvider {
+            override fun getItemCount(): Int = imageCount
+            override fun getItemOnPosition(position: Int): SerpItem = imageList[position]
+        }, maxImageWidth).also {
+            adapter = it
+        }
 
     fun fetchImagesOnQuery(query: String) {
         empty.value = true
@@ -47,11 +53,9 @@ class MainViewModel : BaseViewModel() {
                 if (response?.blocks != null) {
                     val html = response.blocks[0].html
                     val itemList = YandexImageUtil.getSerpListFromHtml(html)
-                    applyData(itemList)
-                    if (numLoadedPages < 1) {
-                        newQueryIsLoaded.value = true
-                    }
+                    newQueryIsLoaded.value = numLoadedPages < 1
                     numLoadedPages++
+                    applyData(itemList)
                 } else {
                     // TODO check num of pages
 
@@ -64,15 +68,15 @@ class MainViewModel : BaseViewModel() {
     /**
      * Change itemList in repository and and notifies the adapter of changes made
      */
-    private fun applyData(itemList: List<SerpItem>) {
+    private fun applyData(itemList: List<SerpItem>) {  // TODO remove log
         val repo = MainRepository.getInstance()
         if (newQueryIsLoaded.value != false) {
             repo.clearImageList()
-            adapter.notifyDataSetChanged()
+            adapter!!.notifyDataSetChanged()
         }
         val lastImageCount = imageCount
         repo.addToImageList(itemList)
-        adapter.notifyItemRangeInserted(lastImageCount, imageCount - 1)
+        adapter!!.notifyItemRangeInserted(lastImageCount, imageCount - 1)
     }
 
     companion object {
