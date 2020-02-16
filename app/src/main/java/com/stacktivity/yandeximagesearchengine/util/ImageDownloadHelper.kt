@@ -9,12 +9,16 @@ import java.net.URL
 class ImageDownloadHelper {
 
     companion object {
-        val tag = ImageDownloadHelper::class.java.simpleName
         /**
-         * Possible exceptions:
+         * Possible to catch exceptions:
          * 1) SocketTimeoutException
          * 2) OutOfMemoryError
          * 3) CertPathValidatorException
+         *
+         * @param url       the direct link to image
+         * @param timeoutMs max time to wait for connection to image server in milliseconds
+         *
+         * @return image Bitmap or null if download failed
          */
         suspend fun getBitmapAsync(url: String, timeoutMs: Int): Bitmap? =
             withContext(Dispatchers.IO) {
