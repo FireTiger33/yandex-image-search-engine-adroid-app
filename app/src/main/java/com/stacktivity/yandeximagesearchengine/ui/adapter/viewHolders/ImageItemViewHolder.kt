@@ -1,39 +1,54 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 
 import android.graphics.Bitmap
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.data.model.Preview
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
-import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
+import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
+import com.stacktivity.yandeximagesearchengine.util.*
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+
+/**
+ * @param maxImageWidth - max preferred width resolution of image
+ * @param defaultColor - color of preview image during loading
+ */
 class ImageItemViewHolder(
-    itemView: View, private val maxImageWidth: Int
-): RecyclerView.ViewHolder(itemView) {
+    itemView: View,
+    private val eventListener: EventListener,
+    private val maxImageWidth: Int,
+    private val defaultColor: Int
+) : RecyclerView.ViewHolder(itemView), SimpleImageListAdapter.EventListener {
+
+    interface EventListener {
+        fun onImageLoadFailed(item: SerpItem)
+    }
 
     private lateinit var item: SerpItem
     private var currentPreviewNum: Int = -1
-    private var currentDupPreviewNum: Int = -1
+    private val otherImageListAdapter = SimpleImageListAdapter(this)
+    private var isShownOtherImages = false
     private val downloadImageTimeout = 3000
     private var job: Job? = null
+    private var parserJob: Job? = null
+
+    init {
+        itemView.other_image_list_rv.adapter = otherImageListAdapter
+    }
 
     fun bind(item: SerpItem) {
-        reset()
         this.item = item
+        reset()
         Log.d("bind", "item: $item")
         var preview = getNextPreview()!!
         bindTextViews(preview)
@@ -43,12 +58,24 @@ class ImageItemViewHolder(
         job = GlobalScope.launch(Dispatchers.Main) {
             var imageBitmap: Bitmap? = getImageBitmap(preview)
             var previewHasChanged = false
-            while (imageBitmap == null) {
-                preview = getNextPreview()?: preview  // TODO remove view if not available results
-                imageBitmap = getImageBitmap(preview)
+            val anotherPreviewBitmap: Pair<Preview?, Bitmap?>
+
+            if (imageBitmap == null) {
+                anotherPreviewBitmap = getAnotherBitmap()
+                if (anotherPreviewBitmap.second != null) {
+                    preview = anotherPreviewBitmap.first ?: preview
+                    imageBitmap = anotherPreviewBitmap.second
+                } else {
+                    eventListener.onImageLoadFailed(item)
+                    return@launch
+                }
                 previewHasChanged = true
             }
-            Log.d("ImageViewHolder", "apply: ${preview.origin?.url ?: preview.url}, currentPreview: $currentPreviewNum, currentDup: $currentDupPreviewNum")
+
+            Log.d("ImageViewHolder",
+                "apply: ${preview.origin?.url
+                    ?: preview.url}, currentPreview: $currentPreviewNum, currentDup: ${currentPreviewNum - item.preview.size}"
+            )
 
             Handler(Looper.getMainLooper()).post {
                 if (previewHasChanged) {
@@ -62,17 +89,87 @@ class ImageItemViewHolder(
         }
     }
 
+    override fun onImagesLoadFailed() {
+        shortToast(R.string.images_load_failed)
+        resetOtherImagesView()
+    }
+
     private fun reset() {
         Log.d("ImageViewHolder", "maxImageWidth: $maxImageWidth")
+        resetOtherImagesView()
         job?.cancel()
+        parserJob?.cancel()
         currentPreviewNum = -1
-        currentDupPreviewNum = -1
+
+        itemView.setOnClickListener {
+            if (isShownOtherImages) {
+                resetOtherImagesView()
+                otherImageListAdapter.clearImageList()
+            } else {
+                itemView.setBackgroundColor(defaultColor)  // TODO databinding
+                isShownOtherImages = true
+                parserJob = GlobalScope.launch(Dispatchers.Main) {
+                    val parentSiteUrl = YandexImageUtil.getImageSourceSite(item)
+                    if (parentSiteUrl != null) {
+                        val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
+
+                        Log.d("imageList", imageLinkList.toString())
+
+                        if (imageLinkList.isNotEmpty()) {
+                            otherImageListAdapter.setNewLinkListToImages(imageLinkList)
+                            itemView.other_image_list_rv.visibility = View.VISIBLE
+                        } else {
+                            itemView.background = null
+                            shortToast(R.string.other_images_not_found)
+                        }
+
+                    } else {
+                        longToast(R.string.yandex_bot_error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun resetOtherImagesView() {
+        itemView.background = null
+        isShownOtherImages = false
+        itemView.other_image_list_rv.visibility = View.GONE
+    }
+
+
+    /**
+     * Attempt to load another image clone if the corresponding one failed to load.
+     *
+     * @return Pair<?, null> if attempt failed
+     * @return Pair of preview from which the bitmap was obtained and bitmap itself if
+     * download is successful
+     */
+    private suspend fun getAnotherBitmap(): Pair<Preview?, Bitmap?> {
+        val previewNum = currentPreviewNum
+        var currentPreview: Preview?
+        var imageBitmap: Bitmap? = null
+
+        while (getPrevPreview().also { currentPreview = it } != null && imageBitmap == null) {
+            if (currentPreview != null) {
+                imageBitmap = getImageBitmap(currentPreview!!)
+            }
+        }
+        if (imageBitmap == null) {
+            currentPreviewNum = previewNum
+            while (getNextPreview().also { currentPreview = it } != null && imageBitmap == null) {
+                imageBitmap = getImageBitmap(currentPreview!!)
+            }
+        }
+
+        return currentPreview to imageBitmap
     }
 
     private fun getMaxAllowSizePreview(currentPreview: Preview): Preview {
         var preview = currentPreview
-        while (preview.w > maxImageWidth) {
-            val nullablePreview = getNextPreview()
+        var nullablePreview = getNextPreview()
+        while (preview.w > maxImageWidth && nullablePreview != null) {
+            nullablePreview = getNextPreview()
             if (nullablePreview != null) {
                 preview = nullablePreview
             }
@@ -83,17 +180,33 @@ class ImageItemViewHolder(
 
     private fun getNextPreview(): Preview? {
         var preview: Preview? = null
+        val previewCount = item.preview.size
+        val dupsPreviewCount = item.dups.size
+        val currentPossibleDupsPreviewNum = currentPreviewNum - previewCount + 1
 
-        if (currentPreviewNum < item.preview.size - 1) {
+        if (currentPreviewNum < previewCount - 1) {
             preview = item.preview[++currentPreviewNum]
-        } else if (currentDupPreviewNum < item.dups.size - 1) {
-            preview = item.dups[++currentDupPreviewNum]
+        } else if (currentPossibleDupsPreviewNum < dupsPreviewCount - 1) {
+            preview = item.dups[currentPossibleDupsPreviewNum]
+            ++currentPreviewNum
         }
 
         return preview
     }
 
-    // TODO getPrevPreview with Bitmap constructor
+    private fun getPrevPreview(): Preview? {
+        Log.d("ImageItemViewHolder", "getPrevPreview")
+        var preview: Preview? = null
+        val previewCount = item.preview.size
+
+        if (currentPreviewNum >= previewCount - 1) {
+            preview = item.dups[--currentPreviewNum]
+        } else if (currentPreviewNum > 0) {
+            preview = item.preview[--currentPreviewNum]
+        }
+
+        return preview
+    }
 
     private suspend fun getImageBitmap(preview: Preview): Bitmap? {
         val imageUrl: String = preview.origin?.url ?: preview.url
@@ -105,17 +218,12 @@ class ImageItemViewHolder(
             val cropFactor: Float = maxImageWidth.toFloat() / width
             val cropHeight: Int = (cropFactor * height).toInt()
             layoutParams.height = cropHeight
-            val color = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                context.resources.getColor(R.color.colorImagePreview, App.getInstance().theme)
-            } else {
-                ContextCompat.getColor(context, R.color.colorImagePreview)
-            }
-            setColorFilter(color)
+            setColorFilter(defaultColor)
         }
     }
 
     private fun bindTextViews(preview: Preview) {
-        val imageResolutionText = "original size: ${preview.w}x${preview.h}"
+        val imageResolutionText = "resolution : ${preview.w}x${preview.h}"
         val imageSizeText = "size: ${preview.fileSizeInBytes / 1024}Kb"
         itemView.run {
             title.text = item.snippet.title

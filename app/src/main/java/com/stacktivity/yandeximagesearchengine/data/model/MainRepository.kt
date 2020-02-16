@@ -32,6 +32,10 @@ class MainRepository {
 
     fun addToImageList(itemList: List<SerpItem>) = imageList.addAll(itemList)
 
+    fun deleteFromImageList(index: Int) {
+        imageList.removeAt(index)
+    }
+
     fun clearImageList() = imageList.clear()
 
     companion object {

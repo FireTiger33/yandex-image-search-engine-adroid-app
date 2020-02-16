@@ -8,13 +8,16 @@ import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 
 class ImageListAdapter(
-    private val contentProvider: ContentProvider, private val maxImageWidth: Int
+    private val contentProvider: ContentProvider,
+    private val eventListener: ImageItemViewHolder.EventListener,
+    private val maxImageWidth: Int,
+    private val defaultColor: Int
 ) : RecyclerView.Adapter<ImageItemViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageItemViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         val view = inflater.inflate(R.layout.item_image_list, parent, false)
-        return ImageItemViewHolder(view, maxImageWidth)
+        return ImageItemViewHolder(view, eventListener, maxImageWidth, defaultColor)
     }
 
     override fun getItemCount() = contentProvider.getItemCount()

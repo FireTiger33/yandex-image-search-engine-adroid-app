@@ -1,63 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#F4F3F3"
-    android:layout_margin="@dimen/cardview_inside_padding">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    tools:background="@color/colorImagePreview">
 
-    <LinearLayout
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="@dimen/cardview_outside_padding">
-
-        <ImageView
-            android:id="@+id/image"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_gravity="center"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_launcher_background"
-            tools:ignore="ContentDescription" />
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/cardview_inside_padding"
+        android:background="#F4F3F3">
 
         <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="@dimen/cardview_outside_padding">
 
-            <TextView
-                android:id="@+id/title"
-                style="@style/TextAppearance.MaterialComponents.Subtitle1"
+            <ImageView
+                android:id="@+id/image"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_gravity="center"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_launcher_background"
+                tools:ignore="ContentDescription" />
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/cardview_padding_after_image"
-                tools:text="ImageTitle" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/image_resolution"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="@dimen/text_size_medium_priority_info"
-                tools:text="2048Kb" />
+                <TextView
+                    android:id="@+id/title"
+                    style="@style/TextAppearance.MaterialComponents.Subtitle1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/cardview_padding_after_image"
+                    tools:text="ImageTitle" />
 
-            <TextView
-                android:id="@+id/image_size"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="@dimen/text_size_low_priority_info"
-                tools:text="original size: 1920x1080" />
+                <TextView
+                    android:id="@+id/image_resolution"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="@dimen/text_size_medium_priority_info"
+                    tools:text="2048Kb" />
 
-            <TextView
-                android:id="@+id/link"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:contextClickable="true"
-                android:autoLink="web"
-                android:linksClickable="true"
-                tools:text="http://yandex.ru"/>
+                <TextView
+                    android:id="@+id/image_size"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="@dimen/text_size_low_priority_info"
+                    tools:text="original size: 1920x1080" />
 
+                <TextView
+                    android:id="@+id/link"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:autoLink="web"
+                    android:linksClickable="true"
+                    tools:contextClickable="true"
+                    tools:text="http://yandex.ru" />
+
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/other_image_list_rv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        tools:visibility="visible"
+        android:background="@color/simple_image_list_background"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        tools:listitem="@layout/simple_item_image_list" />
+</LinearLayout>

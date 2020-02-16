@@ -1,13 +1,18 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
+import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.MutableLiveData
+import com.stacktivity.yandeximagesearchengine.App
+import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.base.BaseViewModel
 import com.stacktivity.yandeximagesearchengine.data.model.ImageData
 import com.stacktivity.yandeximagesearchengine.data.model.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
+import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 
 class MainViewModel : BaseViewModel() {
     val newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
@@ -23,16 +28,35 @@ class MainViewModel : BaseViewModel() {
     private var adapter: ImageListAdapter? = null
 
     fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter = adapter
-        ?: ImageListAdapter(object : ImageListAdapter.ContentProvider {
-            override fun getItemCount(): Int = imageCount
-            override fun getItemOnPosition(position: Int): SerpItem = imageList[position]
-        }, maxImageWidth).also {
+        ?: ImageListAdapter(
+            object : ImageListAdapter.ContentProvider {
+                override fun getItemCount(): Int = imageCount
+                override fun getItemOnPosition(position: Int): SerpItem = imageList[position]
+            },
+            object : ImageItemViewHolder.EventListener {
+                override fun onImageLoadFailed(item: SerpItem) {
+                    Log.d("SimpleImageListAdapter", "load failed: $item")
+                    val deletedItemIndex = imageList.indexOf(item)
+                    MainRepository.getInstance().deleteFromImageList(deletedItemIndex)
+                    adapter?.notifyItemRemoved(deletedItemIndex)
+                }
+            },
+            maxImageWidth, getImageDefaultColor()
+        ).also {
             adapter = it
         }
 
+    private fun getImageDefaultColor(): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            App.getInstance().resources.getColor(R.color.colorImagePreview, App.getInstance().theme)
+        } else {
+            ContextCompat.getColor(App.getInstance(), R.color.colorImagePreview)
+        }
+    }
+
     fun fetchImagesOnQuery(query: String) {
         empty.value = true
-        isLastPage= false
+        isLastPage = false
         numLoadedPages = 0
         currentQuery = query
         fetchImagesOnNextPage()
