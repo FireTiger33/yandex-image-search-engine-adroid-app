@@ -3,9 +3,7 @@ package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
-import android.text.Html
 import android.text.method.LinkMovementMethod
-import android.text.util.Linkify
 import android.util.Log
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
@@ -15,7 +13,6 @@ import com.stacktivity.yandeximagesearchengine.data.model.Preview
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.*
-import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.saveStringListToFile
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope

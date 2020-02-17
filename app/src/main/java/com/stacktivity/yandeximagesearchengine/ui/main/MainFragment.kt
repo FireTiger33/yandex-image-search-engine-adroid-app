@@ -16,7 +16,7 @@ import kotlinx.android.synthetic.main.main_fragment.*
 
 class MainFragment : Fragment() {
     private lateinit var viewModel: MainViewModel
-    private var layoutManager: LinearLayoutManager = LinearLayoutManager(activity)
+    private lateinit var layoutManager: LinearLayoutManager
 
     companion object {
         private var INSTANCE: MainFragment? = null
@@ -43,8 +43,8 @@ class MainFragment : Fragment() {
     private fun setupImageList() {
         val size = Point()
         activity!!.windowManager.defaultDisplay.getSize(size)
-        val masImageWidth = size.x
-        image_list_rv.layoutManager = layoutManager
+        val masImageWidth = (size.x * 0.8).toInt()
+        layoutManager = image_list_rv.layoutManager as LinearLayoutManager
         image_list_rv.adapter = viewModel.getImageItemListAdapter(masImageWidth)
         image_list_rv.addOnScrollListener(getImageScrollListener())
     }

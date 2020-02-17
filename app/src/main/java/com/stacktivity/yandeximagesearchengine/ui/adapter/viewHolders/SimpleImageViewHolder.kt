@@ -26,14 +26,13 @@ class SimpleImageViewHolder(
             val reqHeight = itemView.image.layoutParams.height
             val imageBitmap = BitmapUtils.getSimplifiedBitmap(bufferFile.path, reqHeight = reqHeight)
             if (imageBitmap != null) {
-                prepareImageView(imageBitmap.width, imageBitmap.height)
                 applyBitmapToView(imageBitmap)
                 return
             }
         }
         prepareImageView()
         GlobalScope.launch(Dispatchers.Main) {
-            var imageBitmap: Bitmap? = ImageDownloadHelper.getBitmapAsync(imageUrl, timeoutMs = 2000)
+            var imageBitmap: Bitmap? = ImageDownloadHelper.getBitmapAsync(imageUrl, timeoutMs = 3000)
 
             if (imageBitmap != null) {
                 if (imageBitmap.width < MIN_IMAGE_WIDTH || imageBitmap.height < MIN_IMAGE_HEIGHT) {
@@ -54,7 +53,6 @@ class SimpleImageViewHolder(
                         BitmapUtils.saveBitmapToFile(imageBitmap, bufferFile)
                     }
                     Handler(Looper.getMainLooper()).post {
-                        prepareImageView(imageBitmap.width, imageBitmap.height)
                         applyBitmapToView(imageBitmap)
                     }
                 }
@@ -76,6 +74,7 @@ class SimpleImageViewHolder(
     }
 
     private fun applyBitmapToView(imageBitmap: Bitmap) {
+        prepareImageView(imageBitmap.width, imageBitmap.height)
         itemView.image.run {
             setImageBitmap(imageBitmap)
             colorFilter = null

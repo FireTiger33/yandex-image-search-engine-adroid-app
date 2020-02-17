@@ -34,7 +34,7 @@ class SimpleImageListAdapter(
         return SimpleImageViewHolder(view, this, defaultColor)
     }
 
-    override fun getItemCount(): Int = contentProvider?.getItemCount()?: 0
+    override fun getItemCount(): Int = if (contentProvider != null) contentProvider?.getItemCount()?:0 else 0
 
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
         val bufferFile: File? = if (bufferFileBase != null) {
