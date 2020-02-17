@@ -10,7 +10,8 @@ import java.net.URL
 
 class ImageParser {
     companion object {
-        private val imageLinkRegex: Regex = Regex("((https?:/)?/[^\\s\"]*?\\.(jpe?g|png))")
+        private val imageLinkRegex: Regex = Regex("((https?://)?(([^\\s\"](?!https?))+?\\.(jpe?g|png|gif))+)")
+        private val protocolNotFoundRegex: Regex = Regex("^/{2}")
 
         /**
          * Search direct and relative links to images on site.
@@ -30,10 +31,13 @@ class ImageParser {
                             val lineDataLIst = imageLinkRegex.findAll(inputLine!!)
 
                             lineDataLIst.forEach { data ->
+                                val imageUrl = if (protocolNotFoundRegex.containsMatchIn(data.value)) {
+                                    "${url.protocol}:${data.value}"
+                                } else data.value
                                 val dataUrl = try {
-                                    URL(data.value)
+                                    URL(imageUrl)
                                 } catch (e: MalformedURLException) {
-                                    URL(url.protocol, url.host, data.value)
+                                    URL(url.protocol, url.host, imageUrl)
                                 }
 
                                 linkSet.add(decodeUnicode(dataUrl.toString()))
