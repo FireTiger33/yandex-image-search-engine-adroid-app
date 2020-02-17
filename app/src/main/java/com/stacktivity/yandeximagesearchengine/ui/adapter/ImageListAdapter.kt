@@ -6,9 +6,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
+import java.io.File
 
 class ImageListAdapter(
     private val contentProvider: ContentProvider,
+    private val imageBufferFilesDir: File,
     private val eventListener: ImageItemViewHolder.EventListener,
     private val maxImageWidth: Int,
     private val defaultColor: Int
@@ -23,7 +25,8 @@ class ImageListAdapter(
     override fun getItemCount() = contentProvider.getItemCount()
 
     override fun onBindViewHolder(holder: ImageItemViewHolder, position: Int) {
-        holder.bind(contentProvider.getItemOnPosition(position))
+        val bufferFile = File(imageBufferFilesDir.path + File.separator + position)
+        holder.bind(contentProvider.getItemOnPosition(position), bufferFile)
     }
 
     interface ContentProvider {

@@ -30,7 +30,8 @@ class ImageDownloadHelper {
                         readTimeout = timeoutMs
                     }
                     bitmap = BitmapFactory.decodeStream(conn.getInputStream())
-                } catch (e: IOException) {}
+                } catch (e: OutOfMemoryError) {}
+                catch (e: IOException) {}
 
                 return@withContext bitmap
             }

@@ -12,11 +12,13 @@ import com.stacktivity.yandeximagesearchengine.data.model.Preview
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.*
+import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.saveStringListToFile
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.io.File
 
 
 /**
@@ -36,7 +38,7 @@ class ImageItemViewHolder(
 
     private lateinit var item: SerpItem
     private var currentPreviewNum: Int = -1
-    private val otherImageListAdapter = SimpleImageListAdapter(this)
+    private val otherImageListAdapter = SimpleImageListAdapter(this, defaultColor)
     private var isShownOtherImages = false
     private val downloadImageTimeout = 3000
     private var job: Job? = null
@@ -46,12 +48,21 @@ class ImageItemViewHolder(
         itemView.other_image_list_rv.adapter = otherImageListAdapter
     }
 
-    fun bind(item: SerpItem) {
+    fun bind(item: SerpItem, bufferFile: File) {
         this.item = item
-        reset()
-        Log.d("bind", "item: $item")
+        reset(bufferFile.path)
         var preview = getNextPreview()!!
         bindTextViews(preview)
+        if (bufferFile.exists()) {
+            val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
+            if (imageBitmap != null) {
+                prepareImageView(imageBitmap.width, imageBitmap.height)
+                applyBitmapToView(imageBitmap)
+                return
+            }
+        }
+
+        Log.d("bind", "item: $item")
         preview = getMaxAllowSizePreview(preview)
         prepareImageView(preview.w, preview.h)
 
@@ -65,26 +76,27 @@ class ImageItemViewHolder(
                 if (anotherPreviewBitmap.second != null) {
                     preview = anotherPreviewBitmap.first ?: preview
                     imageBitmap = anotherPreviewBitmap.second
-                } else {
-                    eventListener.onImageLoadFailed(item)
-                    return@launch
                 }
                 previewHasChanged = true
             }
 
-            Log.d("ImageViewHolder",
-                "apply: ${preview.origin?.url
-                    ?: preview.url}, currentPreview: $currentPreviewNum, currentDup: ${currentPreviewNum - item.preview.size}"
-            )
+            if (imageBitmap != null) {
+                BitmapUtils.saveBitmapToFile(imageBitmap, bufferFile)
+
+                Log.d("ImageViewHolder",
+                    "apply: ${preview.origin?.url
+                        ?: preview.url}, currentPreview: $currentPreviewNum, currentDup: ${currentPreviewNum - item.preview.size}"
+                )
+            } else {
+                eventListener.onImageLoadFailed(item)
+                return@launch
+            }
 
             Handler(Looper.getMainLooper()).post {
                 if (previewHasChanged) {
                     prepareImageView(preview.w, preview.h)
                 }
-                itemView.image.run {
-                    setImageBitmap(imageBitmap)
-                    colorFilter = null
-                }
+                applyBitmapToView(imageBitmap)
             }
         }
     }
@@ -94,40 +106,62 @@ class ImageItemViewHolder(
         resetOtherImagesView()
     }
 
-    private fun reset() {
+    private fun reset(otherImagesBufferFileBase: String) {
         Log.d("ImageViewHolder", "maxImageWidth: $maxImageWidth")
         resetOtherImagesView()
         job?.cancel()
         parserJob?.cancel()
         currentPreviewNum = -1
+        val listBufferFile = File("${otherImagesBufferFileBase}_list")
 
         itemView.setOnClickListener {
             if (isShownOtherImages) {
                 resetOtherImagesView()
-                otherImageListAdapter.clearImageList()
             } else {
                 itemView.setBackgroundColor(defaultColor)  // TODO databinding
                 isShownOtherImages = true
-                parserJob = GlobalScope.launch(Dispatchers.Main) {
-                    val parentSiteUrl = YandexImageUtil.getImageSourceSite(item)
-                    if (parentSiteUrl != null) {
-                        val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
+                if (listBufferFile.exists()) {
+                    Log.d("ImageItemViewHolder", "load other images from buffer")
+                    val imageLinkList = FileWorker.loadStringListFromFile(listBufferFile)
 
-                        Log.d("imageList", imageLinkList.toString())
+                    showOtherImages(otherImagesBufferFileBase, imageLinkList)
+                } else {
+                    parserJob = GlobalScope.launch(Dispatchers.Main) {
+                        val parentSiteUrl = YandexImageUtil.getImageSourceSite(item)
 
-                        if (imageLinkList.isNotEmpty()) {
-                            otherImageListAdapter.setNewLinkListToImages(imageLinkList)
-                            itemView.other_image_list_rv.visibility = View.VISIBLE
+                        if (parentSiteUrl != null) {
+                            val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
+
+                            showOtherImages(otherImagesBufferFileBase, imageLinkList)
+                            saveStringListToFile(imageLinkList, listBufferFile)
                         } else {
-                            itemView.background = null
-                            shortToast(R.string.other_images_not_found)
+                            // TODO show captcha
+                            Log.d("ImageItemViewHolder", "Yandex bot error")
+                            resetOtherImagesView()
+                            longToast(R.string.yandex_bot_error)
                         }
-
-                    } else {
-                        longToast(R.string.yandex_bot_error)
                     }
                 }
             }
+        }
+    }
+
+    private fun showOtherImages(otherImagesBufferFileBase: String, imageLinkList: List<String>) {
+        Log.d("imageList", imageLinkList.toString())
+        if (imageLinkList.isNotEmpty()) {
+            otherImageListAdapter.bufferFileBase = otherImagesBufferFileBase
+            otherImageListAdapter.setNewLinkListToImages(imageLinkList)
+            itemView.other_image_list_rv.visibility = View.VISIBLE
+        } else {
+            resetOtherImagesView()
+            shortToast(R.string.other_images_not_found)
+        }
+    }
+
+    private fun applyBitmapToView(imageBitmap: Bitmap) {
+        itemView.image.run {
+            setImageBitmap(imageBitmap)
+            colorFilter = null
         }
     }
 
@@ -135,8 +169,8 @@ class ImageItemViewHolder(
         itemView.background = null
         isShownOtherImages = false
         itemView.other_image_list_rv.visibility = View.GONE
+        otherImageListAdapter.clearImageList()
     }
-
 
     /**
      * Attempt to load another image clone if the corresponding one failed to load.

@@ -1,38 +1,49 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 
 import android.graphics.Bitmap
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
-import com.stacktivity.yandeximagesearchengine.App
-import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
+import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
+import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
 import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
-import kotlinx.android.synthetic.main.simple_item_image_list.view.image
+import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.io.File
 
 class SimpleImageViewHolder(
     itemView: View,
-    private val eventListener: EventListener
+    private val eventListener: EventListener,
+    private val defaultColor: Int
 ): ViewHolder(itemView) {
 
-    fun bind(imageUrl: String) {
+    fun bind(imageUrl: String, bufferFile: File?) {
+        if (bufferFile != null && bufferFile.exists()) {
+            val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
+            if (imageBitmap != null) {
+                prepareImageView(imageBitmap.width, imageBitmap.height)
+                applyBitmapToView(imageBitmap)
+                return
+            }
+        }
         prepareImageView()
         GlobalScope.launch(Dispatchers.Main) {
             val imageBitmap: Bitmap? = ImageDownloadHelper.getBitmapAsync(imageUrl, 2000)
 
             if (imageBitmap != null) {
-                Handler(Looper.getMainLooper()).post {
-                    itemView.image.run {
-                        val cropFactor: Float = height / imageBitmap.height.toFloat()
-                        val cropWidth: Int = (cropFactor * imageBitmap.width).toInt()
-                        layoutParams.width = cropWidth
-                        setImageBitmap(imageBitmap)
-                        colorFilter = null
+                if (imageBitmap.width < MIN_IMAGE_WIDTH || imageBitmap.height < MIN_IMAGE_HEIGHT) {
+                    eventListener.onSmallImage(imageUrl)
+                } else {
+                    if (bufferFile != null) {
+                        BitmapUtils.saveBitmapToFile(imageBitmap, bufferFile)
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                        prepareImageView(imageBitmap.width, imageBitmap.height)
+                        applyBitmapToView(imageBitmap)
                     }
                 }
             } else {
@@ -41,16 +52,26 @@ class SimpleImageViewHolder(
         }
     }
 
-    private fun prepareImageView() {
-        val color = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            itemView.context.resources.getColor(R.color.colorImagePreview, App.getInstance().theme)
-        } else {
-            ContextCompat.getColor(itemView.context, R.color.colorImagePreview)
+    private fun prepareImageView(bitmapWidth: Int? = null, bitmapHeight: Int? = null) {
+        itemView.image.apply {
+            if (bitmapWidth != null && bitmapHeight != null) {
+                val cropFactor: Float = height / bitmapHeight.toFloat()
+                val cropWidth: Int = (cropFactor * bitmapWidth).toInt()
+                layoutParams.width = cropWidth
+            }
+            setColorFilter(defaultColor)
         }
-        itemView.image.setColorFilter(color)
+    }
+
+    private fun applyBitmapToView(imageBitmap: Bitmap) {
+        itemView.image.run {
+            setImageBitmap(imageBitmap)
+            colorFilter = null
+        }
     }
 
     interface EventListener {
         fun onImageLoadFailed(imageUrl: String)
+        fun onSmallImage(imageUrl: String)
     }
 }

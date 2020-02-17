@@ -72,7 +72,7 @@ class MainFragment : Fragment() {
                 val lastVisibleItemPosition: Int = layoutManager.findLastVisibleItemPosition()
 
                 progress_bar.visibility =
-                    if (lastVisibleItemPosition + 1 == layoutManager.itemCount) View.VISIBLE
+                    if (viewModel.dataLoading.value != false && lastVisibleItemPosition + 1 == layoutManager.itemCount) View.VISIBLE
                     else View.GONE
 
                 if (itemCount - lastVisibleItemPosition <= PAGE_SIZE * 0.4) {

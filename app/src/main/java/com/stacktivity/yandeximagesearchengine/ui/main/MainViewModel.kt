@@ -13,6 +13,8 @@ import com.stacktivity.yandeximagesearchengine.data.model.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
+import com.stacktivity.yandeximagesearchengine.util.shortToast
+import java.io.File
 
 class MainViewModel : BaseViewModel() {
     val newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
@@ -25,6 +27,11 @@ class MainViewModel : BaseViewModel() {
     private val imageCount: Int
         get() = MainRepository.getInstance().getImageCount()
 
+    private val imageBufferFilesDir: File
+        get() {
+            return App.getInstance().filesDir
+        }
+
     private var adapter: ImageListAdapter? = null
 
     fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter = adapter
@@ -33,6 +40,7 @@ class MainViewModel : BaseViewModel() {
                 override fun getItemCount(): Int = imageCount
                 override fun getItemOnPosition(position: Int): SerpItem = imageList[position]
             },
+            imageBufferFilesDir,
             object : ImageItemViewHolder.EventListener {
                 override fun onImageLoadFailed(item: SerpItem) {
                     Log.d("SimpleImageListAdapter", "load failed: $item")
@@ -59,6 +67,9 @@ class MainViewModel : BaseViewModel() {
         isLastPage = false
         numLoadedPages = 0
         currentQuery = query
+        imageBufferFilesDir.listFiles()?.forEach { file ->
+            file.delete()
+        }
         fetchImagesOnNextPage()
     }
 
@@ -82,6 +93,9 @@ class MainViewModel : BaseViewModel() {
                     applyData(itemList)
                 } else {
                     // TODO check num of pages
+                    // TODO show captcha
+                    Log.d(tag, "captcha response: $response")
+                    shortToast("Требуется ввести капчу")
 
                     isLastPage = true
                 }
@@ -92,7 +106,7 @@ class MainViewModel : BaseViewModel() {
     /**
      * Change itemList in repository and and notifies the adapter of changes made
      */
-    private fun applyData(itemList: List<SerpItem>) {  // TODO remove log
+    private fun applyData(itemList: List<SerpItem>) {
         val repo = MainRepository.getInstance()
         if (newQueryIsLoaded.value != false) {
             repo.clearImageList()
