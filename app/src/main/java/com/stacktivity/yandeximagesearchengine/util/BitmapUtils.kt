@@ -71,9 +71,16 @@ class BitmapUtils {
                 return@withContext res
             }
 
-        fun getBitmapFromFile(imageFile: File): Bitmap? {  // TODO custom resolution
+        fun getBitmapFromFile(imageFile: File): Bitmap? {
             Log.d(tag, "get bitmap from: ${imageFile.path}")
-            return BitmapFactory.decodeFile(imageFile.path, null)
+            var res: Bitmap? = null
+            try {
+                res = BitmapFactory.decodeFile(imageFile.path, null)
+            } catch (e: OutOfMemoryError) {
+                e.printStackTrace()
+            }
+
+            return res
         }
 
         private fun calculateInSampleSize(
