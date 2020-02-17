@@ -60,6 +60,23 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:autoLink="web"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:text="@string/action_open_origin_image"
+                    android:linksClickable="true"
+                    tools:contextClickable="true"
+                    tools:text="http://yandex.ru" />
+
+                <TextView
+                    android:id="@+id/link_source"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:autoLink="web"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:text="@string/action_open_origin_image"
                     android:linksClickable="true"
                     tools:contextClickable="true"
                     tools:text="http://yandex.ru" />
