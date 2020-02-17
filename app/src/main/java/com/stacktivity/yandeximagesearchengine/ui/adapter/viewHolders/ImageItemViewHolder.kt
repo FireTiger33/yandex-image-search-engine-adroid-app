@@ -36,9 +36,19 @@ class ImageItemViewHolder(
         fun onImageLoadFailed(item: SerpItem)
     }
 
+    interface ContentProvider {
+        fun setAddItemList(list: List<String>)
+        fun getAddItemCount(): Int
+        fun getAddItemOnPosition(position: Int): String
+        fun deleteAddItem(item: String): Int
+    }
+
     private lateinit var item: SerpItem
+    private lateinit var contentProvider: ContentProvider
     private var currentPreviewNum: Int = -1
-    private val otherImageListAdapter = SimpleImageListAdapter(this, defaultColor)
+    private val otherImageListAdapter = SimpleImageListAdapter(
+        this, defaultColor
+    )
     private var isShownOtherImages = false
     private val downloadImageTimeout = 3000
     private var job: Job? = null
@@ -48,8 +58,9 @@ class ImageItemViewHolder(
         itemView.other_image_list_rv.adapter = otherImageListAdapter
     }
 
-    fun bind(item: SerpItem, bufferFile: File) {
+    fun bind(item: SerpItem, bufferFile: File, contentProvider: ContentProvider) {
         this.item = item
+        this.contentProvider = contentProvider
         reset(bufferFile.path)
         var preview = getNextPreview()!!
         bindTextViews(preview)
@@ -112,7 +123,7 @@ class ImageItemViewHolder(
         job?.cancel()
         parserJob?.cancel()
         currentPreviewNum = -1
-        val listBufferFile = File("${otherImagesBufferFileBase}_list")
+        val keyFile = File("${otherImagesBufferFileBase}_list")
 
         itemView.setOnClickListener {
             if (isShownOtherImages) {
@@ -120,25 +131,29 @@ class ImageItemViewHolder(
             } else {
                 itemView.setBackgroundColor(defaultColor)  // TODO databinding
                 isShownOtherImages = true
-                if (listBufferFile.exists()) {
+                if (keyFile.exists()) {
                     Log.d("ImageItemViewHolder", "load other images from buffer")
-                    val imageLinkList = FileWorker.loadStringListFromFile(listBufferFile)
 
-                    showOtherImages(otherImagesBufferFileBase, imageLinkList)
+                    showOtherImages(otherImagesBufferFileBase)
                 } else {
+                    itemView.progress_bar.visibility = View.VISIBLE
                     parserJob = GlobalScope.launch(Dispatchers.Main) {
                         val parentSiteUrl = YandexImageUtil.getImageSourceSite(item)
 
                         if (parentSiteUrl != null) {
                             val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
-
-                            showOtherImages(otherImagesBufferFileBase, imageLinkList)
-                            saveStringListToFile(imageLinkList, listBufferFile)
+                            contentProvider.setAddItemList(imageLinkList)
+                            showOtherImages(otherImagesBufferFileBase)
+                            FileWorker.createFile(keyFile)
                         } else {
                             // TODO show captcha
                             Log.d("ImageItemViewHolder", "Yandex bot error")
                             resetOtherImagesView()
                             longToast(R.string.yandex_bot_error)
+                        }
+
+                        Handler(Looper.getMainLooper()).post {
+                            itemView.progress_bar.visibility = View.GONE
                         }
                     }
                 }
@@ -146,11 +161,9 @@ class ImageItemViewHolder(
         }
     }
 
-    private fun showOtherImages(otherImagesBufferFileBase: String, imageLinkList: List<String>) {
-        Log.d("imageList", imageLinkList.toString())
-        if (imageLinkList.isNotEmpty()) {
+    private fun showOtherImages(otherImagesBufferFileBase: String) {
+        if (contentProvider.getAddItemCount() > 0) {
             otherImageListAdapter.bufferFileBase = otherImagesBufferFileBase
-            otherImageListAdapter.setNewLinkListToImages(imageLinkList)
             itemView.other_image_list_rv.visibility = View.VISIBLE
         } else {
             resetOtherImagesView()
@@ -167,9 +180,22 @@ class ImageItemViewHolder(
 
     private fun resetOtherImagesView() {
         itemView.background = null
+        itemView.progress_bar.visibility = View.GONE
         isShownOtherImages = false
         itemView.other_image_list_rv.visibility = View.GONE
-        otherImageListAdapter.clearImageList()
+        otherImageListAdapter.setNewContentProvider(object : SimpleImageListAdapter.ContentProvider {
+            override fun getItemCount(): Int {
+                return contentProvider.getAddItemCount()
+            }
+
+            override fun getItemOnPosition(position: Int): String {
+                return contentProvider.getAddItemOnPosition(position)
+            }
+
+            override fun deleteItem(imageUrl: String): Int {
+                return contentProvider.deleteAddItem(imageUrl)
+            }
+        })
     }
 
     /**
@@ -229,7 +255,6 @@ class ImageItemViewHolder(
     }
 
     private fun getPrevPreview(): Preview? {
-        Log.d("ImageItemViewHolder", "getPrevPreview")
         var preview: Preview? = null
         val previewCount = item.preview.size
 

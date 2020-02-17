@@ -8,6 +8,7 @@ import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.base.BaseViewModel
+import com.stacktivity.yandeximagesearchengine.data.model.AddImagesRepository
 import com.stacktivity.yandeximagesearchengine.data.model.ImageData
 import com.stacktivity.yandeximagesearchengine.data.model.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
@@ -39,6 +40,21 @@ class MainViewModel : BaseViewModel() {
             object : ImageListAdapter.ContentProvider {
                 override fun getItemCount(): Int = imageCount
                 override fun getItemOnPosition(position: Int): SerpItem = imageList[position]
+                override fun setAddImageList(position: Int, list: List<String>) {
+                    AddImagesRepository.getInstance().createAddImageList(position, list)
+                }
+
+                override fun getAddImagesCountOnPosition(position: Int): Int {
+                    return AddImagesRepository.getInstance().getAddImageList(position).size
+                }
+
+                override fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String {
+                    return AddImagesRepository.getInstance().getAddImageList(position)[itemIndex]
+                }
+
+                override fun deleteItemOtherImageOnPosition(position: Int, imageUrl: String): Int {
+                    return AddImagesRepository.getInstance().deleteItemFromAddImageList(position, imageUrl)
+                }
             },
             imageBufferFilesDir,
             object : ImageItemViewHolder.EventListener {
@@ -67,9 +83,7 @@ class MainViewModel : BaseViewModel() {
         isLastPage = false
         numLoadedPages = 0
         currentQuery = query
-        imageBufferFilesDir.listFiles()?.forEach { file ->
-            file.delete()
-        }
+        clearCache()
         fetchImagesOnNextPage()
     }
 
@@ -115,6 +129,13 @@ class MainViewModel : BaseViewModel() {
         val lastImageCount = imageCount
         repo.addToImageList(itemList)
         adapter!!.notifyItemRangeInserted(lastImageCount, imageCount - 1)
+    }
+
+    private fun clearCache() {
+        imageBufferFilesDir.listFiles()?.forEach { file ->
+            file.delete()
+        }
+        AddImagesRepository.getInstance().clearData()
     }
 
     companion object {

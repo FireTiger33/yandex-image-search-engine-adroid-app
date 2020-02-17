@@ -18,19 +18,13 @@ class SimpleImageListAdapter(
     }
 
     var bufferFileBase: String? = null
+    private var contentProvider: ContentProvider? = null
 
-    private var linkListToImages: ArrayList<String> = arrayListOf()
 
-    fun setNewLinkListToImages(linkList: List<String>) {
-        if (linkListToImages.isNotEmpty()) {
-            clearImageList()
-        }
-        linkListToImages.addAll(linkList)
+    fun setNewContentProvider(contentProvider: ContentProvider) {
+        this.contentProvider = null
         notifyDataSetChanged()
-    }
-
-    fun clearImageList() {
-        linkListToImages = arrayListOf()
+        this.contentProvider = contentProvider
         notifyDataSetChanged()
     }
 
@@ -40,13 +34,13 @@ class SimpleImageListAdapter(
         return SimpleImageViewHolder(view, this, defaultColor)
     }
 
-    override fun getItemCount(): Int = linkListToImages.size
+    override fun getItemCount(): Int = contentProvider?.getItemCount()?: 0
 
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
         val bufferFile: File? = if (bufferFileBase != null) {
             File("${bufferFileBase}_$position")
         } else null
-        holder.bind(linkListToImages[position], bufferFile)
+        holder.bind(contentProvider?.getItemOnPosition(position)?:"", bufferFile)
     }
 
     override fun onImageLoadFailed(imageUrl: String) {
@@ -60,13 +54,18 @@ class SimpleImageListAdapter(
     }
 
     private fun deleteImageFromList(imageUrl: String) {
-        val deletedItemIndex = linkListToImages.indexOf(imageUrl)
+        val deletedItemIndex = contentProvider?.deleteItem(imageUrl)?: -1
         if (deletedItemIndex > -1) {
-            linkListToImages.removeAt(deletedItemIndex)
             notifyItemRemoved(deletedItemIndex)
         }
-        if (linkListToImages.isEmpty()) {
+        if (contentProvider?.getItemCount()?: 0 < 1) {
             eventListener.onImagesLoadFailed()
         }
+    }
+
+    interface ContentProvider {
+        fun getItemCount(): Int
+        fun getItemOnPosition(position: Int): String
+        fun deleteItem(imageUrl: String): Int
     }
 }

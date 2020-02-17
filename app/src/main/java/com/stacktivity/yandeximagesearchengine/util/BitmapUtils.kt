@@ -19,12 +19,29 @@ class BitmapUtils {
         /**
          * Simplifies Bitmap to desired resolution
          */
-        fun getSimplifiedBitmap(imagePath: String, reqWidth: Int, reqHeight: Int): Bitmap? {
+        fun getSimplifiedBitmap(imagePath: String, reqWidth: Int = -1, reqHeight: Int = -1): Bitmap? {
+            val validReqWidth: Int
+            val validReqHeight: Int
+            val cropFactor: Float
             val options = BitmapFactory.Options()
+
+            if (reqWidth < 1 && reqHeight < 1) {
+                return null
+            }
 
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(imagePath, options)
-            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+            if (reqHeight < 0) {
+                validReqWidth = reqWidth
+                cropFactor = reqWidth / options.outWidth.toFloat()
+                validReqHeight = (options.outHeight * cropFactor).toInt()
+            } else {
+                validReqHeight = reqHeight
+                cropFactor = reqHeight / options.outHeight.toFloat()
+                validReqWidth = (options.outWidth * cropFactor).toInt()
+            }
+
+            options.inSampleSize = calculateInSampleSize(options, validReqWidth, validReqHeight)
             options.inJustDecodeBounds = false
 
             return BitmapFactory.decodeFile(imagePath, options)
