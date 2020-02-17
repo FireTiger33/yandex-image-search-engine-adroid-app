@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="cardview_inside_padding">8dp</dimen>
+    <dimen name="cardview_outside_padding">8dp</dimen>
+    <dimen name="cardview_padding_after_image">4dp</dimen>
+
+    <dimen name="text_size_medium_priority_info">12sp</dimen>
+    <dimen name="text_size_low_priority_info">10sp</dimen>
+
+    <dimen name="progressbar_default_size">64dp</dimen>
+</resources>

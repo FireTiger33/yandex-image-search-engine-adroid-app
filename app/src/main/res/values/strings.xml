@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">YandexImageSearchEngine</string>
+    <string name="hint_search">search</string>
+    <string name="image">Изображение</string>
+    
+    <string name="yandex_bot_error">К сожалению яндекс ограничил доступ к источнику изображения с текущего IP</string>
+    <string name="other_images_not_found">Другие изображения не найдены</string>
+    <string name="images_load_failed">Не удалось загрузить изображения</string>
 </resources>
