@@ -6,9 +6,9 @@ import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.URL
-import javax.net.ssl.SSLException
 
 class YandexImageUtil {
     companion object {
@@ -82,7 +82,7 @@ class YandexImageUtil {
                             }
                         }
                     }
-                } catch (e: SSLException) {
+                } catch (e: IOException) {
                     e.printStackTrace()
                 }
 

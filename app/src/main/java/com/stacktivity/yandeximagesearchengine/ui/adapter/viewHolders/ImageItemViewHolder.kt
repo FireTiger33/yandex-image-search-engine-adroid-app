@@ -3,10 +3,13 @@ package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.text.Html
 import android.text.method.LinkMovementMethod
+import android.text.util.Linkify
 import android.util.Log
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
+import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.data.model.Preview
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
@@ -139,6 +142,7 @@ class ImageItemViewHolder(
                     itemView.progress_bar.visibility = View.VISIBLE
                     parserJob = GlobalScope.launch(Dispatchers.Main) {
                         val parentSiteUrl = YandexImageUtil.getImageSourceSite(item)
+                        Log.d("ImageItemViewHolder", "parent: $parentSiteUrl")
 
                         if (parentSiteUrl != null) {
                             val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
@@ -269,7 +273,15 @@ class ImageItemViewHolder(
 
     private suspend fun getImageBitmap(preview: Preview): Bitmap? {
         val imageUrl: String = preview.origin?.url ?: preview.url
-        return ImageDownloadHelper.getBitmapAsync(imageUrl, downloadImageTimeout)
+        var reqWidth: Int? = null
+        var reqHeight: Int? = null
+        if (preview.w > maxImageWidth) {  // TODO
+            val cropFactor = maxImageWidth.toFloat() / preview.w
+            reqWidth = maxImageWidth
+            reqHeight = (preview.h * cropFactor).toInt()
+        }
+
+        return ImageDownloadHelper.getBitmapAsync(imageUrl, reqWidth, reqHeight, downloadImageTimeout)
     }
 
     private fun prepareImageView(width: Int, height: Int) {
@@ -284,12 +296,16 @@ class ImageItemViewHolder(
     private fun bindTextViews(preview: Preview) {
         val imageResolutionText = "resolution : ${preview.w}x${preview.h}"
         val imageSizeText = "size: ${preview.fileSizeInBytes / 1024}Kb"
+        val linkUrl = "${App.getInstance().getString(R.string.action_open_origin_image)}: ${preview.origin?.url?: preview.url}"
+        val linkSourceUrl = "${App.getInstance().getString(R.string.action_open_origin_image_source)}: ${item.snippet.url}"
         itemView.run {
             title.text = item.snippet.title
             image_resolution.text = imageResolutionText
             image_size.text = imageSizeText
-            link.text = preview.origin?.url?: preview.url
+            link.text = linkUrl
             link.movementMethod = LinkMovementMethod.getInstance()
+            link_source.text = linkSourceUrl
+            link_source.movementMethod = LinkMovementMethod.getInstance()
         }
     }
 }
