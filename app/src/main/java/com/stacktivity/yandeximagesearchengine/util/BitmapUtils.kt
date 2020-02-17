@@ -51,7 +51,7 @@ class BitmapUtils {
             withContext(Dispatchers.IO) {
                 var res = false
                 val bos = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos)
+                bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
                 val inputByteArray = bos.toByteArray()
 
                 if (!destFile.exists()) {

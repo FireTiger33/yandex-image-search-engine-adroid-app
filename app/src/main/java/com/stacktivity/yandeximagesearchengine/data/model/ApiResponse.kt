@@ -16,10 +16,10 @@ data class Name(val block: String/*, val mods: Mods*/)
 data class Params(
         val count: Int,
 //        val mods: Mods,
-        val prevPageUrl: String,
-        val nextPageUrl: String,
+//        val prevPageUrl: String,
+//        val nextPageUrl: String,
 //        val item: Item,
-        val hoverTime: Int,
+//        val hoverTime: Int,
         val lastPage: Int,
         val bundles: ArrayList<Any?>
 )
