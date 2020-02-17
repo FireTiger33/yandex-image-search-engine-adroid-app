@@ -23,7 +23,8 @@ class SimpleImageViewHolder(
 
     fun bind(imageUrl: String, bufferFile: File?) {
         if (bufferFile != null && bufferFile.exists()) {
-            val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
+            val reqHeight = itemView.image.layoutParams.height
+            val imageBitmap = BitmapUtils.getSimplifiedBitmap(bufferFile.path, reqHeight = reqHeight)
             if (imageBitmap != null) {
                 prepareImageView(imageBitmap.width, imageBitmap.height)
                 applyBitmapToView(imageBitmap)

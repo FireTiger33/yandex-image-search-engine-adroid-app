@@ -24,13 +24,36 @@ class ImageListAdapter(
 
     override fun getItemCount() = contentProvider.getItemCount()
 
-    override fun onBindViewHolder(holder: ImageItemViewHolder, position: Int) {
-        val bufferFile = File(imageBufferFilesDir.path + File.separator + position)
-        holder.bind(contentProvider.getItemOnPosition(position), bufferFile)
+    override fun onBindViewHolder(holder: ImageItemViewHolder, positionVh: Int) {
+        val bufferFile = File(imageBufferFilesDir.path + File.separator + positionVh)
+        holder.bind(contentProvider.getItemOnPosition(positionVh), bufferFile,
+            object : ImageItemViewHolder.ContentProvider {
+                override fun setAddItemList(list: List<String>) {
+                    contentProvider.setAddImageList(positionVh, list)
+                }
+
+                override fun getAddItemCount(): Int {
+                    return contentProvider.getAddImagesCountOnPosition(positionVh)
+                }
+
+                override fun getAddItemOnPosition(position: Int): String {
+                    return contentProvider.getAddImageListItemOnPosition(positionVh, position)
+                }
+
+                override fun deleteAddItem(item: String): Int {
+                    return contentProvider.deleteItemOtherImageOnPosition(positionVh, item)
+                }
+
+            }
+        )
     }
 
     interface ContentProvider {
         fun getItemCount(): Int
         fun getItemOnPosition(position: Int): SerpItem
+        fun setAddImageList(position: Int, list: List<String>)
+        fun getAddImagesCountOnPosition(position: Int): Int
+        fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String
+        fun deleteItemOtherImageOnPosition(position: Int, imageUrl: String): Int
     }
 }
