@@ -139,6 +139,7 @@ class ImageItemViewHolder(
                     itemView.progress_bar.visibility = View.VISIBLE
                     parserJob = GlobalScope.launch(Dispatchers.Main) {
                         val parentSiteUrl = YandexImageUtil.getImageSourceSite(item)
+                        Log.d("ImageItemViewHolder", "parent: $parentSiteUrl")
 
                         if (parentSiteUrl != null) {
                             val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
@@ -269,7 +270,15 @@ class ImageItemViewHolder(
 
     private suspend fun getImageBitmap(preview: Preview): Bitmap? {
         val imageUrl: String = preview.origin?.url ?: preview.url
-        return ImageDownloadHelper.getBitmapAsync(imageUrl, downloadImageTimeout)
+        var reqWidth: Int? = null
+        var reqHeight: Int? = null
+        if (preview.w > maxImageWidth) {  // TODO
+            val cropFactor = maxImageWidth.toFloat() / preview.w
+            reqWidth = maxImageWidth
+            reqHeight = (preview.h * cropFactor).toInt()
+        }
+
+        return ImageDownloadHelper.getBitmapAsync(imageUrl, reqWidth, reqHeight, downloadImageTimeout)
     }
 
     private fun prepareImageView(width: Int, height: Int) {

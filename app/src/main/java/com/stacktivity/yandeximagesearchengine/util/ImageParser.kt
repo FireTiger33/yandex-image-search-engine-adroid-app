@@ -3,11 +3,10 @@ package com.stacktivity.yandeximagesearchengine.util
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
-import java.io.FileNotFoundException
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.MalformedURLException
 import java.net.URL
-import javax.net.ssl.SSLException
 
 class ImageParser {
     companion object {
@@ -41,9 +40,13 @@ class ImageParser {
                             }
                         }
                     }
-                } catch (e: SSLException) {
-                    e.printStackTrace()
-                } catch (e: FileNotFoundException) {
+                } catch (e: IOException) {
+                    /**
+                     * Possible exceptions:
+                     * 1) FileNotFoundException
+                     * 2) UnknownHostException
+                     * 3) SSLException
+                     */
                     e.printStackTrace()
                 }
 

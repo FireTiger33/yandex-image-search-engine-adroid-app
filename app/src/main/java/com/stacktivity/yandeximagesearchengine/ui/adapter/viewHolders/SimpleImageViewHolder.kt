@@ -33,12 +33,23 @@ class SimpleImageViewHolder(
         }
         prepareImageView()
         GlobalScope.launch(Dispatchers.Main) {
-            val imageBitmap: Bitmap? = ImageDownloadHelper.getBitmapAsync(imageUrl, 2000)
+            var imageBitmap: Bitmap? = ImageDownloadHelper.getBitmapAsync(imageUrl, timeoutMs = 2000)
 
             if (imageBitmap != null) {
                 if (imageBitmap.width < MIN_IMAGE_WIDTH || imageBitmap.height < MIN_IMAGE_HEIGHT) {
                     eventListener.onSmallImage(imageUrl)
                 } else {
+                    val imageViewHeight = itemView.image.layoutParams.height
+                    if (imageBitmap.height > imageViewHeight) {
+                        val cropFactor = imageViewHeight / imageBitmap.height.toFloat()  // TODO
+                        val reqWidth = (imageBitmap.width * cropFactor).toInt()
+                        imageBitmap = Bitmap.createScaledBitmap(
+                            imageBitmap,
+                            reqWidth, imageViewHeight,
+                            false
+                        )?: imageBitmap
+                    }
+
                     if (bufferFile != null) {
                         BitmapUtils.saveBitmapToFile(imageBitmap, bufferFile)
                     }

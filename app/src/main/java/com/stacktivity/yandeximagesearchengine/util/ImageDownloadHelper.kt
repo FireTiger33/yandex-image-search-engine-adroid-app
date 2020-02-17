@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.*
 import java.io.IOException
+import java.lang.NullPointerException
 import java.net.URL
 
 class ImageDownloadHelper {
@@ -20,16 +21,29 @@ class ImageDownloadHelper {
          *
          * @return image Bitmap or null if download failed
          */
-        suspend fun getBitmapAsync(url: String, timeoutMs: Int): Bitmap? =
+        suspend fun getBitmapAsync(url: String,
+                                   reqWidth: Int? = null, reqHeight: Int? = null,
+                                   timeoutMs: Int? = null
+        ): Bitmap? =
             withContext(Dispatchers.IO) {
                 var bitmap: Bitmap? = null
 
                 try {
                     val conn = URL(url).openConnection().apply {
-                        connectTimeout = timeoutMs
-                        readTimeout = timeoutMs
+                        if (timeoutMs != null) {
+                            connectTimeout = timeoutMs
+                            readTimeout = timeoutMs
+                        }
                     }
-                    bitmap = BitmapFactory.decodeStream(conn.getInputStream())
+                    bitmap = if (reqWidth != null && reqHeight != null) {
+                        try {
+                            Bitmap.createScaledBitmap(BitmapFactory.decodeStream(conn.getInputStream()), reqWidth, reqHeight, false)
+                        } catch (e: NullPointerException) {
+                            null
+                        }
+                    } else {
+                        BitmapFactory.decodeStream(conn.getInputStream())
+                    }
                 } catch (e: OutOfMemoryError) {}
                 catch (e: IOException) {}
 
