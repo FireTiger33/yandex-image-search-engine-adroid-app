@@ -6,13 +6,13 @@ import retrofit2.Callback
 import retrofit2.Response
 
 class MainRepository {
-    private val imageList = ArrayList<SerpItem>()
+    private val imageList = ArrayList<ImageItem>()
 
     fun getImageData(query: String, page: Int,
-                     onResult: (isSuccess: Boolean, response: ImageData?) -> Unit) {
+                     onResult: (isSuccess: Boolean, response: YandexResponse?) -> Unit) {
         Regex("""\s+""").replace(query, "+")
-        YandexImagesApi.instance.getJSONSearchResult(search = query, page = page).enqueue(object : Callback<ImageData> {
-            override fun onResponse(call: Call<ImageData>?, response: Response<ImageData>?) {
+        YandexImagesApi.instance.getJSONSearchResult(search = query, page = page).enqueue(object : Callback<YandexResponse> {
+            override fun onResponse(call: Call<YandexResponse>?, response: Response<YandexResponse>?) {
                 if (response != null && response.isSuccessful) {
                     onResult(true, response.body())
                 }
@@ -20,17 +20,17 @@ class MainRepository {
                     onResult(false, null)
             }
 
-            override fun onFailure(call: Call<ImageData>?, t: Throwable?) {
+            override fun onFailure(call: Call<YandexResponse>?, t: Throwable?) {
                 onResult(false, null)
             }
         })
     }
 
-    fun getImageList(): ArrayList<SerpItem> = imageList
+    fun getImageList(): ArrayList<ImageItem> = imageList
 
     fun getImageCount(): Int = imageList.size
 
-    fun addToImageList(itemList: List<SerpItem>) = imageList.addAll(itemList)
+    fun addToImageList(itemList: List<ImageItem>) = imageList.addAll(itemList)
 
     fun deleteFromImageList(index: Int) {
         imageList.removeAt(index)

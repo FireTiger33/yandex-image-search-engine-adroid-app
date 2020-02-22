@@ -1,6 +1,6 @@
 package com.stacktivity.yandeximagesearchengine.data.model
 
-data class ImageData(
+data class YandexResponse(
 //        val cnt: String,
         val blocks: List<Blocks>
 )

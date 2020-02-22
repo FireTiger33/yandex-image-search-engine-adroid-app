@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
-import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
+import com.stacktivity.yandeximagesearchengine.data.model.ImageItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import java.io.File
 
@@ -50,7 +50,7 @@ class ImageListAdapter(
 
     interface ContentProvider {
         fun getItemCount(): Int
-        fun getItemOnPosition(position: Int): SerpItem
+        fun getItemOnPosition(position: Int): ImageItem
         fun setAddImageList(position: Int, list: List<String>)
         fun getAddImagesCountOnPosition(position: Int): Int
         fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String
