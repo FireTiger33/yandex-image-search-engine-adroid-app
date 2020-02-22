@@ -1,5 +1,6 @@
-package com.stacktivity.yandeximagesearchengine.data.model
+package com.stacktivity.yandeximagesearchengine.data
 
+import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
 import retrofit2.Call
 import retrofit2.Callback

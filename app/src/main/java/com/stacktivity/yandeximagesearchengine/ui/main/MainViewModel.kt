@@ -9,6 +9,8 @@ import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.base.BaseViewModel
+import com.stacktivity.yandeximagesearchengine.data.ImageItem
+import com.stacktivity.yandeximagesearchengine.data.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.model.*
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder

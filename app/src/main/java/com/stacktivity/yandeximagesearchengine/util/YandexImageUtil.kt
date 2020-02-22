@@ -2,8 +2,8 @@ package com.stacktivity.yandeximagesearchengine.util
 
 import android.util.Log
 import com.google.gson.Gson
-import com.stacktivity.yandeximagesearchengine.data.model.ImageData
-import com.stacktivity.yandeximagesearchengine.data.model.ImageItem
+import com.stacktivity.yandeximagesearchengine.data.ImageData
+import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
@@ -33,27 +33,32 @@ class YandexImageUtil {
                     .filter { it.origin?.w?: it.w > MIN_IMAGE_WIDTH }
                 allPreview.forEach { preview ->
                     if (preview.origin != null) {
-                        allImages.add(ImageData(
-                            preview.origin.w, preview.origin.h,
-                            preview.fileSizeInBytes,
-                            preview.origin.url
-                        ))
+                        allImages.add(
+                            ImageData(
+                                preview.origin.w, preview.origin.h,
+                                preview.fileSizeInBytes,
+                                preview.origin.url
+                            )
+                        )
                     } else {
                         Log.d(tag, "origin = null: $preview \n all: $item")
-                        allImages.add(ImageData(
-                            preview.w, preview.h,
-                            preview.fileSizeInBytes,
-                            preview.url
-                        ))
+                        allImages.add(
+                            ImageData(
+                                preview.w, preview.h,
+                                preview.fileSizeInBytes,
+                                preview.url
+                            )
+                        )
                     }
                 }
                 allImages.sortedByDescending { it.width }
 
-                imageItem = ImageItem(
-                    item.snippet.title,
-                    item.snippet.url,
-                    allImages
-                )
+                imageItem =
+                    ImageItem(
+                        item.snippet.title,
+                        item.snippet.url,
+                        allImages
+                    )
 
                 imageList.add(imageItem)
             }

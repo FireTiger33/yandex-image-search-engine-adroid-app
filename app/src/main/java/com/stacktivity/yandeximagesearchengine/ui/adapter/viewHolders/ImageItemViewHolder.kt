@@ -9,8 +9,8 @@ import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
-import com.stacktivity.yandeximagesearchengine.data.model.ImageData
-import com.stacktivity.yandeximagesearchengine.data.model.ImageItem
+import com.stacktivity.yandeximagesearchengine.data.ImageData
+import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.*
 import kotlinx.android.synthetic.main.item_image_list.view.*

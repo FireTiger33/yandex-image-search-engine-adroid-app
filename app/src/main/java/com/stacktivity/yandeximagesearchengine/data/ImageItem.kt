@@ -1,4 +1,4 @@
-package com.stacktivity.yandeximagesearchengine.data.model
+package com.stacktivity.yandeximagesearchengine.data
 
 /**
 * Main class used to store search result element
