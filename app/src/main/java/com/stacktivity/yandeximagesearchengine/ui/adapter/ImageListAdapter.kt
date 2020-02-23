@@ -13,13 +13,16 @@ class ImageListAdapter(
     private val imageBufferFilesDir: File,
     private val eventListener: ImageItemViewHolder.EventListener,
     private val maxImageWidth: Int,
-    private val defaultColor: Int
+    private val defaultImageColor: Int
 ) : RecyclerView.Adapter<ImageItemViewHolder>() {
 
+    private var parentWidth: Int = 0
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageItemViewHolder {
+        parentWidth = parent.measuredWidth
         val inflater = LayoutInflater.from(parent.context)
         val view = inflater.inflate(R.layout.item_image_list, parent, false)
-        return ImageItemViewHolder(view, eventListener, maxImageWidth, defaultColor)
+        return ImageItemViewHolder(view, eventListener, maxImageWidth, defaultImageColor)
     }
 
     override fun getItemCount() = contentProvider.getItemCount()
@@ -44,7 +47,8 @@ class ImageListAdapter(
                     return contentProvider.deleteItemOtherImageOnPosition(positionVh, item)
                 }
 
-            }
+            },
+            parentWidth
         )
     }
 

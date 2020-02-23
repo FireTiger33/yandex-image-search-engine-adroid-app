@@ -6,6 +6,7 @@ import android.os.Looper
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
@@ -23,13 +24,13 @@ import java.io.File
 
 /**
  * @param maxImageWidth - max preferred width resolution of image
- * @param defaultColor - color of preview image during loading
+ * @param defaultImageColor - color of preview image during loading
  */
 class ImageItemViewHolder(
     itemView: View,
     private val eventListener: EventListener,
     private val maxImageWidth: Int,
-    private val defaultColor: Int
+    private val defaultImageColor: Int
 ) : RecyclerView.ViewHolder(itemView), SimpleImageListAdapter.EventListener {
 
     private val tag = ImageItemViewHolder::class.java.simpleName
@@ -49,7 +50,7 @@ class ImageItemViewHolder(
     private lateinit var contentProvider: ContentProvider
     private var currentPreviewNum: Int = -1
     private val otherImageListAdapter = SimpleImageListAdapter(
-        this, defaultColor
+        this, defaultImageColor
     )
     private var isShownOtherImages = false
     private val downloadImageTimeout = 3000
@@ -60,16 +61,17 @@ class ImageItemViewHolder(
         itemView.other_image_list_rv.adapter = otherImageListAdapter
     }
 
-    fun bind(item: ImageItem, bufferFile: File, contentProvider: ContentProvider) {
+    fun bind(item: ImageItem, bufferFile: File, contentProvider: ContentProvider, parentWidth: Int) {
         this.item = item
         this.contentProvider = contentProvider
         reset(bufferFile.path)
         var preview = getNextPreview()!!
         bindTextViews(preview)
+
         if (bufferFile.exists()) {
             val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
             if (imageBitmap != null) {
-                prepareImageView(imageBitmap.width, imageBitmap.height)
+                prepareImageView(parentWidth, imageBitmap.width, imageBitmap.height)
                 applyBitmapToView(imageBitmap)
                 return
             }
@@ -79,7 +81,7 @@ class ImageItemViewHolder(
         if (preview.width > maxImageWidth) {
             preview = getMaxAllowSizePreview(preview)
         }
-        prepareImageView(preview.width, preview.height)
+        prepareImageView(parentWidth, preview.width, preview.height)
 
         job = GlobalScope.launch(Dispatchers.Main) {
             var imageBitmap: Bitmap? = getImageBitmap(preview)
@@ -87,6 +89,7 @@ class ImageItemViewHolder(
             val anotherPreviewBitmap: Pair<ImageData?, Bitmap?>
 
             if (imageBitmap == null) {
+                Log.d(tag, "load failed: ${preview.url}")
                 anotherPreviewBitmap = getAnotherBitmap()
                 if (anotherPreviewBitmap.second != null) {
                     preview = anotherPreviewBitmap.first ?: preview
@@ -98,19 +101,18 @@ class ImageItemViewHolder(
             if (imageBitmap != null) {
                 BitmapUtils.saveBitmapToFile(imageBitmap, bufferFile)
 
+                Handler(Looper.getMainLooper()).post {
+                    if (previewHasChanged) {
+                        prepareImageView(parentWidth, imageBitmap.width, imageBitmap.height)
+                    }
+                    applyBitmapToView(imageBitmap)
+                }
+
                 Log.d(tag,
                     "apply: ${preview.url}, currentPreview: $currentPreviewNum"
                 )
             } else {
                 eventListener.onImageLoadFailed(item)
-                return@launch
-            }
-
-            Handler(Looper.getMainLooper()).post {
-                if (previewHasChanged) {
-                    prepareImageView(preview.width, preview.height)
-                }
-                applyBitmapToView(imageBitmap)
             }
         }
     }
@@ -131,7 +133,7 @@ class ImageItemViewHolder(
             if (isShownOtherImages) {
                 resetOtherImagesView()
             } else {
-                itemView.setBackgroundColor(defaultColor)  // TODO databinding
+                itemView.setBackgroundColor(defaultImageColor)
                 isShownOtherImages = true
                 if (keyFile.exists()) {
                     Log.d(tag, "load other images from buffer")
@@ -276,12 +278,16 @@ class ImageItemViewHolder(
         return ImageDownloadHelper.getBitmapAsync(imageUrl, reqWidth, reqHeight, downloadImageTimeout)
     }
 
-    private fun prepareImageView(width: Int, height: Int) {
+    private fun prepareImageView(parentWidth: Int, imageWidth: Int, imageHeight: Int) {
+        val calcImageViewWidth: Float = parentWidth.toFloat() -
+                (itemView.image.parent as ViewGroup).run {
+                    paddingLeft + paddingRight
+                } * 2
         itemView.image.run {
-            val cropFactor: Float = maxImageWidth.toFloat() / width
-            val cropHeight: Int = (cropFactor * height).toInt()
+            val cropFactor: Float = calcImageViewWidth / imageWidth
+            val cropHeight: Int = (cropFactor * imageHeight).toInt()
             layoutParams.height = cropHeight
-            setColorFilter(defaultColor)
+            setColorFilter(defaultImageColor)
         }
     }
 

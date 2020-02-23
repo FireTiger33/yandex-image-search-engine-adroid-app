@@ -2,6 +2,7 @@ package com.stacktivity.yandeximagesearchengine.data.model.api
 
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.stacktivity.yandeximagesearchengine.BuildConfig.DEBUG
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.BASE_YANDEX_URL
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.REQUEST_READ_TIMEOUT_DURATION
@@ -20,11 +21,17 @@ object YandexImagesApi {
 
     val instance: ApiService = Retrofit.Builder().run {
         baseUrl(BASE_YANDEX_URL)
-        addConverterFactory(GsonConverterFactory.create(Gson()))
+        addConverterFactory(GsonConverterFactory.create(getGson()))
         client(getOkHttpClient(getEventListener()))
         build()
     }.create(ApiService::class.java)
 
+
+    private fun getGson(): Gson {
+        return GsonBuilder()
+            .setLenient()
+            .create()
+    }
 
     private fun getEventListener(): EventListener {
         return object: EventListener() {
