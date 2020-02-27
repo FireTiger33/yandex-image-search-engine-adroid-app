@@ -39,6 +39,7 @@ class ImageItemViewHolder(
 
     interface EventListener {
         fun onImageLoadFailed(item: ImageItem)
+        fun onAdditionalImageClick(imageUrl: String)
     }
 
     interface ContentProvider {
@@ -126,6 +127,10 @@ class ImageItemViewHolder(
     override fun onImagesLoadFailed() {
         shortToast(R.string.images_load_failed)
         resetOtherImagesView()
+    }
+
+    override fun onItemClick(item: String) {
+        eventListener.onAdditionalImageClick(item)
     }
 
     private fun reset(otherImagesBufferFileBase: String) {

@@ -1,8 +1,9 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
+import android.content.Intent
 import android.graphics.Point
+import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -65,9 +66,16 @@ class MainFragment : Fragment() {
             }
         })
 
+        viewModel.onImageClickEvent.observe(viewLifecycleOwner, Observer {
+            it.getContentIfNotHandled()?.let { imageUrl ->
+                activity?.startActivity(Intent(Intent.ACTION_VIEW)
+                    .setData(Uri.parse(imageUrl))
+                )
+            }
+        })
+
         viewModel.captchaEvent.observe(viewLifecycleOwner, Observer {
             it.getContentIfNotHandled()?.let { imageUrl ->
-                Log.d(TAG, "Event is not null")
                 val dialog = CaptchaDialog(
                     imageUrl = imageUrl,
                     showFailedMsg = it.isRepeatEvent

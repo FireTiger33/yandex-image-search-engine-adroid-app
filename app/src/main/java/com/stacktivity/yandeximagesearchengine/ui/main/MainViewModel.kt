@@ -18,15 +18,22 @@ import com.stacktivity.yandeximagesearchengine.data.model.*
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import com.stacktivity.yandeximagesearchengine.util.Event
+import com.stacktivity.yandeximagesearchengine.util.EventForResult
 import java.io.File
 
 class MainViewModel : BaseViewModel() {
     private val _newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
     val newQueryIsLoaded: LiveData<Boolean>
         get() = _newQueryIsLoaded
-    private val _captchaEvent = MutableLiveData<Event<String, String>>()
-    val captchaEvent: LiveData<Event<String, String>>
+
+    private val _captchaEvent = MutableLiveData<EventForResult<String, String>>()
+    val captchaEvent: LiveData<EventForResult<String, String>>
         get() = _captchaEvent
+
+    private val _onImageClickEvent = MutableLiveData<Event<String>>()
+    val onImageClickEvent: LiveData<Event<String>>
+        get() = _onImageClickEvent
+
     private var numLoadedPages: Int = 0
     private var currentQuery: String = ""
     private var isLastPage = false
@@ -61,7 +68,7 @@ class MainViewModel : BaseViewModel() {
                                 onResult: (captchaValue: String) -> Unit
                             ) = Handler(Looper.getMainLooper()).post {
                                 _captchaEvent.value =
-                                    Event(captchaImgUrl, isRepeatEvent) { result ->
+                                    EventForResult(captchaImgUrl, isRepeatEvent) { result ->
                                         if (result != null) {
                                             onResult(result)
                                         } else {
@@ -98,6 +105,10 @@ class MainViewModel : BaseViewModel() {
                     val deletedItemIndex = imageList.indexOf(item)
                     MainRepository.getInstance().deleteFromImageList(deletedItemIndex)
                     adapter?.notifyItemRemoved(deletedItemIndex)
+                }
+
+                override fun onAdditionalImageClick(imageUrl: String) {
+                    _onImageClickEvent.value = Event(imageUrl)
                 }
             },
             maxImageWidth, getImageDefaultColor()
@@ -138,7 +149,7 @@ class MainViewModel : BaseViewModel() {
                     isRepeatEvent: Boolean,
                     onResult: (captchaValue: String) -> Unit
                 ) = Handler(Looper.getMainLooper()).post {
-                    _captchaEvent.value = Event(captchaImgUrl, isRepeatEvent) { result ->
+                    _captchaEvent.value = EventForResult(captchaImgUrl, isRepeatEvent) { result ->
                         if (result != null) {
                             onResult(result)
                         }

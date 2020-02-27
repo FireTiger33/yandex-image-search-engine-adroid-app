@@ -3,11 +3,7 @@ package com.stacktivity.yandeximagesearchengine.util
 /**
  * Used as a wrapper for data that is exposed via a LiveData that represents an event.
  */
-class Event<out T, O>(
-    private val content: T,
-    val isRepeatEvent: Boolean = false,
-    private val onResult: ((result: O?) -> Unit)? = null
-) {
+open class Event<out T>(private val content: T) {
 
     var hasBeenHandled = false
         private set
@@ -28,7 +24,19 @@ class Event<out T, O>(
      * Returns the content, even if it's already been handled.
      */
     fun peekContent(): T = content
+}
 
+/**
+ * Used as a wrapper for data that is exposed via a LiveData that represents an event
+ * for which want to get result.
+ *
+ * @see [Event]
+ */
+class EventForResult<out T, O>(
+    content: T,
+    val isRepeatEvent: Boolean = false,
+    private val onResult: ((result: O?) -> Unit)? = null
+): Event<T>(content) {
     fun setResult(result: O?) {
         onResult?.let { it(result) }
     }
