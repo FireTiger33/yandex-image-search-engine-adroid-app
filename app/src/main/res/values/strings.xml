@@ -5,8 +5,17 @@
 
     <string name="action_open_origin_image">Открыть оригинал</string>
     <string name="action_open_origin_image_source">Источник</string>
+    <string name="action_send">Отправить</string>
 
     <string name="yandex_bot_error">К сожалению яндекс ограничил доступ к источнику изображения с текущего IP</string>
     <string name="other_images_not_found">Другие изображения не найдены</string>
     <string name="images_load_failed">Не удалось загрузить изображения</string>
+
+    <!-- Captcha -->
+    <string name="captcha">Капча</string>
+    <string name="captcha_input_field">Поле ввода для капчи</string>
+    <string name="captcha_title">Пожалуйста введите капчу</string>
+    <string name="info_for_entering_captcha">Используйте строчные и прописные буквы, знаки препинания. Между словами поставьте пробел.</string>
+    <string name="error_message_enter_captcha">Неверно, попробуйте ещё раз!</string>
+
 </resources>
