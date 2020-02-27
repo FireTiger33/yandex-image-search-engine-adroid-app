@@ -7,4 +7,6 @@
     <color name="colorImagePreview">#D8D8D8</color>
 
     <color name="simple_image_list_background">#F6F6F6</color>
+    
+    <color name="color_error_msg_enter_captcha">#D32F2F</color>
 </resources>

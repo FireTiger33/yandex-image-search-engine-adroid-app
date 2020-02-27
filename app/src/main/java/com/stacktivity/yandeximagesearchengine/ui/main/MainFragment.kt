@@ -11,6 +11,7 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.PAGE_SIZE
 import kotlinx.android.synthetic.main.main_fragment.*
 
@@ -19,6 +20,8 @@ class MainFragment : Fragment() {
     private lateinit var layoutManager: LinearLayoutManager
 
     companion object {
+        val TAG = MainFragment::class.java.simpleName
+
         private var INSTANCE: MainFragment? = null
         fun getInstance() = INSTANCE
                 ?: MainFragment().also {
@@ -59,6 +62,20 @@ class MainFragment : Fragment() {
         viewModel.newQueryIsLoaded.observe(viewLifecycleOwner, Observer {
             if (it && layoutManager.itemCount > 0) {
                 image_list_rv.scrollToPosition(0)
+            }
+        })
+
+        viewModel.captchaEvent.observe(viewLifecycleOwner, Observer {
+            it.getContentIfNotHandled()?.let { imageUrl ->
+                Log.d(TAG, "Event is not null")
+                val dialog = CaptchaDialog(
+                    imageUrl = imageUrl,
+                    showFailedMsg = it.isRepeatEvent
+                ) { captchaValue ->
+                    it.setResult(captchaValue)
+                }
+
+                dialog.show(childFragmentManager.beginTransaction(), CaptchaDialog.tag)
             }
         })
     }

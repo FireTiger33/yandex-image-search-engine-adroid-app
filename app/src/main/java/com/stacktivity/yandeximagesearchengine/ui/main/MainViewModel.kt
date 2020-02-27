@@ -1,6 +1,8 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
@@ -11,16 +13,20 @@ import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.base.BaseViewModel
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.MainRepository
+import com.stacktivity.yandeximagesearchengine.data.YandexRepository
 import com.stacktivity.yandeximagesearchengine.data.model.*
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
-import com.stacktivity.yandeximagesearchengine.util.shortToast
+import com.stacktivity.yandeximagesearchengine.util.Event
 import java.io.File
 
 class MainViewModel : BaseViewModel() {
     private val _newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
     val newQueryIsLoaded: LiveData<Boolean>
         get() = _newQueryIsLoaded
+    private val _captchaEvent = MutableLiveData<Event<String, String>>()
+    val captchaEvent: LiveData<Event<String, String>>
+        get() = _captchaEvent
     private var numLoadedPages: Int = 0
     private var currentQuery: String = ""
     private var isLastPage = false
@@ -42,6 +48,32 @@ class MainViewModel : BaseViewModel() {
             object : ImageListAdapter.ContentProvider {
                 override fun getItemCount(): Int = imageCount
                 override fun getItemOnPosition(position: Int): ImageItem = imageList[position]
+                override fun getImageRealSourceSite(
+                    possibleSource: String,
+                    onAsyncResult: (realSource: String?) -> Unit
+                ) {
+                    YandexRepository.getInstance().getImageRealSourceSite(
+                        possibleSource,
+                        object : YandexRepository.CaptchaEventListener {
+                            override fun onCaptchaEvent(
+                                captchaImgUrl: String,
+                                isRepeatEvent: Boolean,
+                                onResult: (captchaValue: String) -> Unit
+                            ) = Handler(Looper.getMainLooper()).post {
+                                _captchaEvent.value =
+                                    Event(captchaImgUrl, isRepeatEvent) { result ->
+                                        if (result != null) {
+                                            onResult(result)
+                                        } else {
+                                            onAsyncResult(null)
+                                        }
+                                    }
+                            }
+                        },
+                        onAsyncResult
+                    )
+                }
+
                 override fun setAddImageList(position: Int, list: List<String>) {
                     AddImagesRepository.getInstance().createAddImageList(position, list)
                 }
@@ -98,7 +130,21 @@ class MainViewModel : BaseViewModel() {
 
     private fun fetchImages(query: String, page: Int) {
         dataLoading.value = true
-        MainRepository.getInstance().getImageData(query, page) { isSuccess, response: YandexResponse? ->
+        YandexRepository.getInstance().getImageData(
+            query, page,
+            object : YandexRepository.CaptchaEventListener {
+                override fun onCaptchaEvent(
+                    captchaImgUrl: String,
+                    isRepeatEvent: Boolean,
+                    onResult: (captchaValue: String) -> Unit
+                ) = Handler(Looper.getMainLooper()).post {
+                    _captchaEvent.value = Event(captchaImgUrl, isRepeatEvent) { result ->
+                        if (result != null) {
+                            onResult(result)
+                        }
+                    }
+                }
+            }) { isSuccess, response: YandexResponse? ->
             dataLoading.value = false
             if (isSuccess) {
                 empty.value = false
@@ -110,9 +156,6 @@ class MainViewModel : BaseViewModel() {
                     applyData(itemList)
                 } else {
                     // TODO check num of pages
-                    // TODO show captcha
-                    Log.d(tag, "captcha response: $response")
-                    shortToast("Требуется ввести капчу")
 
                     isLastPage = true
                 }
@@ -142,7 +185,7 @@ class MainViewModel : BaseViewModel() {
     }
 
     companion object {
-        private val tag = MainViewModel::class.java.simpleName
+        val tag = MainViewModel::class.java.simpleName
 
         private var INSTANCE: MainViewModel? = null
         fun getInstance() = INSTANCE

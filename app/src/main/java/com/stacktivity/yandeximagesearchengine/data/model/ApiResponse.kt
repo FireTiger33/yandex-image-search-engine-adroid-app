@@ -2,7 +2,9 @@ package com.stacktivity.yandeximagesearchengine.data.model
 
 data class YandexResponse(
 //        val cnt: String,
-        val blocks: List<Blocks>
+//        val type: String,
+        val blocks: List<Blocks>,
+        val captcha: Captcha?
 )
 
 data class Blocks(

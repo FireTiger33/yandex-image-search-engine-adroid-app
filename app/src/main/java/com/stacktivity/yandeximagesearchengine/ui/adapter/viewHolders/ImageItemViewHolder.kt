@@ -12,6 +12,8 @@ import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
+import com.stacktivity.yandeximagesearchengine.data.model.Captcha
+import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.*
 import kotlinx.android.synthetic.main.item_image_list.view.*
@@ -40,6 +42,10 @@ class ImageItemViewHolder(
     }
 
     interface ContentProvider {
+        fun getImageRealSourceSite(
+            possibleSource: String,
+            onAsyncResult: (realSource: String?) -> Unit
+        )
         fun setAddItemList(list: List<String>)
         fun getAddItemCount(): Int
         fun getAddItemOnPosition(position: Int): String
@@ -135,32 +141,29 @@ class ImageItemViewHolder(
             } else {
                 itemView.setBackgroundColor(defaultImageColor)
                 isShownOtherImages = true
-                if (keyFile.exists()) {
+                if (keyFile.exists()) {  // Data has already been loaded before, load from cache
                     Log.d(tag, "load other images from buffer")
 
                     showOtherImages(otherImagesBufferFileBase)
-                } else {
+                } else {  // Getting real source of origin image and list of images
                     itemView.progress_bar.visibility = View.VISIBLE
-                    parserJob = GlobalScope.launch(Dispatchers.Main) {
-                        val parentSiteUrl = YandexImageUtil.getImageRealSourceSite(item.sourceSite)
-                        Log.d(tag, "parent: $parentSiteUrl")
-
-                        if (parentSiteUrl != null) {
-                            val imageLinkList = ImageParser.getUrlListToImages(parentSiteUrl)
-                            contentProvider.setAddItemList(imageLinkList)
-                            showOtherImages(otherImagesBufferFileBase)
-                            FileWorker.createFile(keyFile)
-                        } else {
-                            // TODO show captcha
-                            Log.d(tag, "Yandex bot error")
-                            resetOtherImagesView()
-                            longToast(R.string.yandex_bot_error)
+                        contentProvider.getImageRealSourceSite(item.sourceSite) { realSource ->
+                            Log.d(tag, "parent: $realSource")
+                            if (realSource != null) {
+                                parserJob = GlobalScope.launch(Dispatchers.Main) {
+                                    val imageLinkList = ImageParser.getUrlListToImages(realSource)
+                                    contentProvider.setAddItemList(imageLinkList)
+                                    showOtherImages(otherImagesBufferFileBase)
+                                    FileWorker.createFile(keyFile)
+                                    Handler(Looper.getMainLooper()).post {
+                                        itemView.progress_bar.visibility = View.GONE
+                                    }
+                                }
+                            } else {
+                                shortToast(R.string.images_load_failed)
+                                resetOtherImagesView()
+                            }
                         }
-
-                        Handler(Looper.getMainLooper()).post {
-                            itemView.progress_bar.visibility = View.GONE
-                        }
-                    }
                 }
             }
         }
@@ -214,6 +217,7 @@ class ImageItemViewHolder(
         val previewNum = currentPreviewNum
         var currentPreview: ImageData?
         var imageBitmap: Bitmap? = null
+        Log.d(tag, "getAnotherBitmap: ${item.title}")
 
         while (getPrevPreview().also { currentPreview = it } != null && imageBitmap == null) {
             if (currentPreview != null) {

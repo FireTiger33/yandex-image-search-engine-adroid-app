@@ -5,10 +5,7 @@ import com.google.gson.Gson
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
-import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class YandexImageUtil {
 
@@ -84,60 +81,5 @@ class YandexImageUtil {
 
             return itemList
         }
-
-
-        /**
-         * If image source refers to Yandex collections,
-         * an attempt is made to install real source.
-         *
-         * @return link to image source or null if source could not be found
-         */
-        suspend fun getImageRealSourceSite(possibleSource: String): String? {
-            var source = possibleSource
-            var originSource: String?
-            val yandexCollectionsRegex = Regex("yandex.+?collections")
-            var isNotSourceOfImage = true
-
-            if (yandexCollectionsRegex.containsMatchIn(source)) {
-                while (isNotSourceOfImage) {
-                    originSource = getImageSourceSiteFromCard(source)
-                    if (originSource != null) {
-                        source = originSource
-                        isNotSourceOfImage = false
-                    } else {
-                        return null
-                    }
-                }
-            }
-
-            return source
-        }
-
-
-        /**
-         * Search link to source site from the Yandex collections page.
-         *
-         * Catches exceptions related to unsupported SSL certificates.
-         *
-         * @return link to image source or null if source could not be found
-         */
-        private suspend fun getImageSourceSiteFromCard(url: String): String? =
-            withContext(Dispatchers.IO) {
-                Log.d(tag, "url: $url")
-                val res: String?
-                val sourceSiteReg = Regex("page_url.:.(.+?)..,")
-                var matchRes: MatchResult? = null
-
-                try {
-                    val response = YandexImagesApi.instance.getHtml(url).execute()
-                    matchRes = sourceSiteReg.find(response.body()!!)
-                } catch (e: IllegalStateException) {
-                    // TODO process result and show captcha
-                }
-
-                res = matchRes?.groupValues?.get(1)
-
-                return@withContext res
-            }
     }
 }

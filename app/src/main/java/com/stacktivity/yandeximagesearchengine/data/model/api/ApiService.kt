@@ -1,6 +1,7 @@
 package com.stacktivity.yandeximagesearchengine.data.model.api
 
 import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -24,5 +25,29 @@ interface ApiService {
     fun getHtml(
         @Path(value = "path", encoded = true) path: String,
         @Query("format") format: String = "json"
-    ): Call<String>
+    ): Call<ResponseBody>
+
+    @GET("{path}")
+    fun getYandexResponse(
+        @Path(value = "path", encoded = true) path: String,
+        @Query("format") format: String = "json"
+    ): Call<YandexResponse>
+
+    @GET("https://{host}/checkcaptcha")
+    fun sendYandexCaptchaForYandexResponse(
+        @Path(value = "host", encoded = true) host: String,
+        @Query("key") key: String,
+        @Query("retpath", encoded = true) returnUrl: String,
+        @Query("rep") value: String,
+        @Query("format") format: String = "json"
+    ): Call<YandexResponse>
+
+    @GET("https://{host}/checkcaptcha")
+    fun sendYandexCaptchaForHtml(
+        @Path(value = "host", encoded = true) host: String,
+        @Query("key") key: String,
+        @Query("retpath", encoded = true) returnUrl: String,
+        @Query("rep") value: String,
+        @Query("format") format: String = "json"
+    ): Call<ResponseBody>
 }

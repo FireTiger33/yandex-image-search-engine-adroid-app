@@ -8,4 +8,6 @@
     <dimen name="text_size_low_priority_info">10sp</dimen>
 
     <dimen name="progressbar_default_size">64dp</dimen>
+
+    <dimen name="padding_title">8dp</dimen>
 </resources>
