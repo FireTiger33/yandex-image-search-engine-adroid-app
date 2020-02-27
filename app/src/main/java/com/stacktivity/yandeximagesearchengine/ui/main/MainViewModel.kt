@@ -153,10 +153,11 @@ class MainViewModel : BaseViewModel() {
                     val itemList = YandexImageUtil.getImageItemListFromHtml(html)
                     _newQueryIsLoaded.value = numLoadedPages < 1
                     numLoadedPages++
+                    if (numLoadedPages == response.blocks[0].params.lastPage) {
+                        isLastPage = true
+                    }
                     applyData(itemList)
                 } else {
-                    // TODO check num of pages
-
                     isLastPage = true
                 }
             }
