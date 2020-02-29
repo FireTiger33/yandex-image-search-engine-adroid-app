@@ -7,24 +7,24 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
 import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
-import com.stacktivity.yandeximagesearchengine.base.BaseViewModel
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.YandexRepository
-import com.stacktivity.yandeximagesearchengine.data.model.*
+import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import com.stacktivity.yandeximagesearchengine.util.Event
 import com.stacktivity.yandeximagesearchengine.util.EventForResult
 import java.io.File
 
-class MainViewModel : BaseViewModel() {
-    private val _newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
-    val newQueryIsLoaded: LiveData<Boolean>
-        get() = _newQueryIsLoaded
+class MainViewModel : ViewModel() {
+    val empty = MutableLiveData<Boolean>().apply { value = true }
+    val dataLoading = MutableLiveData<Boolean>().apply { value = false }
+    val newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
 
     private val _captchaEvent = MutableLiveData<EventForResult<String, String>>()
     val captchaEvent: LiveData<EventForResult<String, String>>
@@ -82,19 +82,19 @@ class MainViewModel : BaseViewModel() {
                 }
 
                 override fun setAddImageList(position: Int, list: List<String>) {
-                    AddImagesRepository.getInstance().createAddImageList(position, list)
+                    MainRepository.getInstance().createAddImageList(position, list)
                 }
 
                 override fun getAddImagesCountOnPosition(position: Int): Int {
-                    return AddImagesRepository.getInstance().getAddImageList(position).size
+                    return MainRepository.getInstance().getAddImageList(position).size
                 }
 
                 override fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String {
-                    return AddImagesRepository.getInstance().getAddImageList(position)[itemIndex]
+                    return MainRepository.getInstance().getAddImageList(position)[itemIndex]
                 }
 
                 override fun deleteItemOtherImageOnPosition(position: Int, imageUrl: String): Int {
-                    return AddImagesRepository.getInstance()
+                    return MainRepository.getInstance()
                         .deleteItemFromAddImageList(position, imageUrl)
                 }
             },
@@ -129,7 +129,6 @@ class MainViewModel : BaseViewModel() {
         isLastPage = false
         numLoadedPages = 0
         currentQuery = query
-        clearCache()
         fetchImagesOnNextPage()
     }
 
@@ -162,7 +161,7 @@ class MainViewModel : BaseViewModel() {
                 if (response?.blocks != null) {
                     val html = response.blocks[0].html
                     val itemList = YandexImageUtil.getImageItemListFromHtml(html)
-                    _newQueryIsLoaded.value = numLoadedPages < 1
+                    newQueryIsLoaded.value = numLoadedPages < 1
                     numLoadedPages++
                     if (numLoadedPages == response.blocks[0].params.lastPage) {
                         isLastPage = true
@@ -179,13 +178,12 @@ class MainViewModel : BaseViewModel() {
      * Change itemList in repository and and notifies the adapter of changes made
      */
     private fun applyData(itemList: List<ImageItem>) {
-        val repo = MainRepository.getInstance()
-        if (_newQueryIsLoaded.value != false) {
-            repo.clearImageList()
+        if (newQueryIsLoaded.value != false) {
+            clearCache()
             adapter!!.notifyDataSetChanged()
         }
         val lastImageCount = imageCount
-        repo.addToImageList(itemList)
+        MainRepository.getInstance().addToImageList(itemList)
         adapter!!.notifyItemRangeInserted(lastImageCount, imageCount - 1)
     }
 
@@ -193,7 +191,7 @@ class MainViewModel : BaseViewModel() {
         imageBufferFilesDir.listFiles()?.forEach { file ->
             file.delete()
         }
-        AddImagesRepository.getInstance().clearData()
+        MainRepository.getInstance().clearAllData()
     }
 
     companion object {
