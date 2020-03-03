@@ -40,7 +40,7 @@ class ImageListAdapter(
         return object : ImageItemViewHolder.ContentProvider {
             override fun getImageRealSourceSite(
                 possibleSource: String,
-                onAsyncResult: (realSource: String?) -> Unit
+                onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit
             ) {
                 contentProvider.getImageRealSourceSite(possibleSource, onAsyncResult)
             }
@@ -66,7 +66,9 @@ class ImageListAdapter(
     interface ContentProvider {
         fun getItemCount(): Int
         fun getItemOnPosition(position: Int): ImageItem
-        fun getImageRealSourceSite(possibleSource: String, onAsyncResult: (realSource: String?) -> Unit)
+        fun getImageRealSourceSite(
+            possibleSource: String,
+            onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit)
         fun setAddImageList(position: Int, list: List<String>)
         fun getAddImagesCountOnPosition(position: Int): Int
         fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String

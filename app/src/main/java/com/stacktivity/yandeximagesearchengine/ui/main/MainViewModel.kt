@@ -16,6 +16,8 @@ import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import com.stacktivity.yandeximagesearchengine.util.Event
 import com.stacktivity.yandeximagesearchengine.util.EventForResult
+import com.stacktivity.yandeximagesearchengine.util.getString
+import com.stacktivity.yandeximagesearchengine.R.string.need_enter_captcha
 import java.io.File
 
 class MainViewModel : ViewModel() {
@@ -54,7 +56,7 @@ class MainViewModel : ViewModel() {
                 override fun getItemOnPosition(position: Int): ImageItem = imageList[position]
                 override fun getImageRealSourceSite(
                     possibleSource: String,
-                    onAsyncResult: (realSource: String?) -> Unit
+                    onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit
                 ) {
                     YandexRepository.getInstance().getImageRealSourceSite(
                         possibleSource,
@@ -69,7 +71,7 @@ class MainViewModel : ViewModel() {
                                         if (result != null) {
                                             onResult(result)
                                         } else {
-                                            onAsyncResult(null)
+                                            onAsyncResult(null, getString(need_enter_captcha))
                                         }
                                     }
                             }

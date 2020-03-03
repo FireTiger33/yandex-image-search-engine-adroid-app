@@ -47,7 +47,7 @@ class ImageItemViewHolder(
     interface ContentProvider {
         fun getImageRealSourceSite(
             possibleSource: String,
-            onAsyncResult: (realSource: String?) -> Unit
+            onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit
         )
         fun setAddItemList(list: List<String>)
         fun getAddItemCount(): Int
@@ -154,7 +154,7 @@ class ImageItemViewHolder(
                     showOtherImages(otherImagesBufferFileBase)
                 } else {  // Getting real source of origin image and list of images
                     itemView.progress_bar.visibility = View.VISIBLE
-                        contentProvider.getImageRealSourceSite(item.sourceSite) { realSource ->
+                        contentProvider.getImageRealSourceSite(item.sourceSite) { realSource, errorMsg ->
                             Log.d(tag, "parent: $realSource")
                             if (realSource != null) {
                                 parserJob = GlobalScope.launch(Dispatchers.Main) {
@@ -167,7 +167,7 @@ class ImageItemViewHolder(
                                     }
                                 }
                             } else {
-                                shortToast(string.images_load_failed)
+                                shortToast(getString(string.images_load_failed) + errorMsg)
                                 resetOtherImagesView()
                             }
                         }
@@ -286,7 +286,7 @@ class ImageItemViewHolder(
             reqHeight = (preview.height * cropFactor).toInt()
         }
 
-        return ImageDownloadHelper.getBitmapAsync(imageUrl, reqWidth, reqHeight, downloadImageTimeout)
+        return ImageDownloadHelper.getBitmapAsync(imageUrl, reqWidth, reqHeight)
     }
 
     private fun prepareImageView(parentWidth: Int, imageWidth: Int, imageHeight: Int) {
