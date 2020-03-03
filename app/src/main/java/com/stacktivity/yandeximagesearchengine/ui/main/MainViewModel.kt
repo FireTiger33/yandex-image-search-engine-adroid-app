@@ -1,15 +1,12 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.stacktivity.yandeximagesearchengine.App
-import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.MainRepository
@@ -111,18 +108,10 @@ class MainViewModel : ViewModel() {
                     _onImageClickEvent.value = Event(imageUrl)
                 }
             },
-            maxImageWidth, getImageDefaultColor()
+            maxImageWidth
         ).also {
             adapter = it
         }
-
-    private fun getImageDefaultColor(): Int {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            App.getInstance().resources.getColor(R.color.colorImagePreview, App.getInstance().theme)
-        } else {
-            ContextCompat.getColor(App.getInstance(), R.color.colorImagePreview)
-        }
-    }
 
     fun fetchImagesOnQuery(query: String) {
         empty.value = true

@@ -8,14 +8,18 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.stacktivity.yandeximagesearchengine.App
-import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.R.string
+import com.stacktivity.yandeximagesearchengine.R.color
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
-import com.stacktivity.yandeximagesearchengine.data.model.Captcha
-import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
-import com.stacktivity.yandeximagesearchengine.util.*
+import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
+import com.stacktivity.yandeximagesearchengine.util.ImageParser
+import com.stacktivity.yandeximagesearchengine.util.FileWorker
+import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
+import com.stacktivity.yandeximagesearchengine.util.getColor
+import com.stacktivity.yandeximagesearchengine.util.getString
+import com.stacktivity.yandeximagesearchengine.util.shortToast
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -26,13 +30,11 @@ import java.io.File
 
 /**
  * @param maxImageWidth - max preferred width resolution of image
- * @param defaultImageColor - color of preview image during loading
  */
 class ImageItemViewHolder(
     itemView: View,
     private val eventListener: EventListener,
-    private val maxImageWidth: Int,
-    private val defaultImageColor: Int
+    private val maxImageWidth: Int
 ) : RecyclerView.ViewHolder(itemView), SimpleImageListAdapter.EventListener {
 
     private val tag = ImageItemViewHolder::class.java.simpleName
@@ -57,7 +59,7 @@ class ImageItemViewHolder(
     private lateinit var contentProvider: ContentProvider
     private var currentPreviewNum: Int = -1
     private val otherImageListAdapter = SimpleImageListAdapter(
-        this, defaultImageColor
+        this, getColor(color.colorImagePreview)
     )
     private var isShownOtherImages = false
     private val downloadImageTimeout = 3000
@@ -125,7 +127,7 @@ class ImageItemViewHolder(
     }
 
     override fun onImagesLoadFailed() {
-        shortToast(R.string.images_load_failed)
+        shortToast(string.images_load_failed)
         resetOtherImagesView()
     }
 
@@ -144,7 +146,7 @@ class ImageItemViewHolder(
             if (isShownOtherImages) {
                 resetOtherImagesView()
             } else {
-                itemView.setBackgroundColor(defaultImageColor)
+                itemView.setBackgroundColor(getColor(color.itemOnClickOutSideColor))
                 isShownOtherImages = true
                 if (keyFile.exists()) {  // Data has already been loaded before, load from cache
                     Log.d(tag, "load other images from buffer")
@@ -165,7 +167,7 @@ class ImageItemViewHolder(
                                     }
                                 }
                             } else {
-                                shortToast(R.string.images_load_failed)
+                                shortToast(string.images_load_failed)
                                 resetOtherImagesView()
                             }
                         }
@@ -180,7 +182,7 @@ class ImageItemViewHolder(
             itemView.other_image_list_rv.visibility = View.VISIBLE
         } else {
             resetOtherImagesView()
-            shortToast(R.string.other_images_not_found)
+            shortToast(string.other_images_not_found)
         }
     }
 
@@ -296,15 +298,15 @@ class ImageItemViewHolder(
             val cropFactor: Float = calcImageViewWidth / imageWidth
             val cropHeight: Int = (cropFactor * imageHeight).toInt()
             layoutParams.height = cropHeight
-            setColorFilter(defaultImageColor)
+            setColorFilter(getColor(color.colorImagePreview))
         }
     }
 
     private fun bindTextViews(preview: ImageData) {
         val imageResolutionText = "resolution : ${preview.width}x${preview.height}"
         val imageSizeText = "size: ${preview.fileSizeInBytes / 1024}Kb"
-        val linkUrl = "${App.getInstance().getString(R.string.action_open_origin_image)}: ${preview.url}"
-        val linkSourceUrl = "${App.getInstance().getString(R.string.action_open_origin_image_source)}: ${item.sourceSite}"
+        val linkUrl = "${getString(string.action_open_origin_image)}: ${preview.url}"
+        val linkSourceUrl = "${getString(string.action_open_origin_image_source)}: ${item.sourceSite}"
         itemView.run {
             title.text = item.title
             image_resolution.text = imageResolutionText
