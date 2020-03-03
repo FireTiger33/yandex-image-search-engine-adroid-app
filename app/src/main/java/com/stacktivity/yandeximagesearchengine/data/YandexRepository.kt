@@ -4,13 +4,11 @@ import android.util.Log
 import com.google.gson.Gson
 import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.lang.RuntimeException
 
 class YandexRepository {
     private lateinit var currentCaptchaOnResultCallback: (captchaValue: String) -> Unit
@@ -72,7 +70,7 @@ class YandexRepository {
         possibleSource: String,
         eventListener: CaptchaEventListener,
         onResult: (realSource: String?) -> Unit
-    ) = GlobalScope.launch {
+    ) {
         val yandexCollectionsRegex = Regex("yandex.+?collections")
 
         if (yandexCollectionsRegex.containsMatchIn(possibleSource)) {
@@ -91,50 +89,53 @@ class YandexRepository {
     /**
      * Search link to source site from the Yandex collections page.
      *
-     * Catches exceptions related to unsupported SSL certificates.
+     * If you receive an unsatisfactory result from the server,
+     * it is checked for the presence of captcha and called [CaptchaEventListener.onCaptchaEvent],
+     * which is passed to the [Unit], waiting for the entered characters from the captcha
      *
      * @return link to image source or null if source could not be found
      */
-    private suspend fun getImageSourceSiteFromCard(
+    private fun getImageSourceSiteFromCard(
         url: String,
         eventListener: CaptchaEventListener,
         onResult: (realSource: String?) -> Unit
-    ) = withContext(Dispatchers.IO) {
+    ) {
         Log.d(tag, "url: $url")
-        val responseBody = YandexImagesApi.instance.getHtml(url).execute().body()
-        var result =  if (responseBody != null) {
-            getImageSourceSiteFromHtml(responseBody.string())
-        } else {
-            onResult(null)
-            return@withContext
-        }
+        YandexImagesApi.instance.getHtml(url).enqueue(object : Callback<ResponseBody> {
+            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+                val responseString = response.body()?.string()
+                if (responseString != null && response.isSuccessful) {
+                    getImageSourceSiteFromHtml(responseString)?.let {onResult(it)} ?: run {
+                        try {
+                            val captcha = Gson().fromJson(responseString, YandexResponse::class.java).captcha
 
-        if (result == null) {
-            val yaResponse = YandexImagesApi.instance.getYandexResponse(url).execute()
-            val captcha = yaResponse.body()?.captcha
-
-            if (captcha != null) {
-                currentCaptchaOnResultCallback = { captchaValue ->
-                    captcha.sendCaptcha(captchaValue) { isSuccess, responseBody ->
-                        if (!isSuccess) {
-                            eventListener.onCaptchaEvent(captcha.img_url, true, currentCaptchaOnResultCallback)
-                        } else {
-                            result = getImageSourceSiteFromHtml(responseBody)
-                            if (result != null) {
-                                onResult(result)
+                            if (captcha != null) {
+                                currentCaptchaOnResultCallback = { captchaValue ->
+                                    captcha.sendCaptcha(captchaValue) { isSuccess, responseBody ->
+                                        if (isSuccess) {
+                                            onResult(getImageSourceSiteFromHtml(responseBody))
+                                        } else {
+                                            eventListener.onCaptchaEvent(captcha.img_url, true, currentCaptchaOnResultCallback)
+                                        }
+                                    }
+                                }
+                                eventListener.onCaptchaEvent(captcha.img_url, false, currentCaptchaOnResultCallback)
                             } else {
                                 onResult(null)
                             }
+                        } catch (e: RuntimeException) {
+                            onResult(null)
                         }
                     }
+                } else {
+                    onResult(null)
                 }
-                eventListener.onCaptchaEvent(captcha.img_url, false, currentCaptchaOnResultCallback)
-            } else {
+            }
+
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                 onResult(null)
             }
-        } else {
-            onResult(result)
-        }
+        })
     }
 
     private fun getImageSourceSiteFromHtml(html: String?): String? {
