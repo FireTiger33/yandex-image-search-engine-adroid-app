@@ -97,10 +97,7 @@ class ImageItemViewHolder(
             }
         }
 
-        currentPreviewNum = getMaxAllowSizePreviewNum(
-            maxImageWidth,
-            maxImageWidth / 2
-        )  // TODO get width from settings
+        currentPreviewNum = getMaxAllowSizePreviewNum(maxImageWidth, maxImageWidth / 2)  // TODO get width from settings
         Log.d(tag, "bind item: $item")
         val cropFactor = maxImageWidth.toFloat() / item.dups[currentPreviewNum].width
         val reqWidth = maxImageWidth
@@ -212,10 +209,6 @@ class ImageItemViewHolder(
         reqHeight: Int? = null,
         onAsyncResult: (bitmap: Bitmap?) -> Unit
     ) {
-        Log.d(
-            tag,
-            "current = ${currentPreviewNum}, imageUrls: ${item.dups.slice(0..currentPreviewNum).map { x -> x.url }}"
-        )
         val imageUrls: Array<String> = (
                 item.dups.slice(0..currentPreviewNum).reversed() +
                         item.dups.slice(currentPreviewNum + 1 until item.dups.size)
@@ -246,8 +239,7 @@ class ImageItemViewHolder(
                         onAsyncResult(null)
                     }
 
-                    else -> {
-                    }
+                    else -> { }
                 }
             }
         )
@@ -280,8 +272,7 @@ class ImageItemViewHolder(
         val imageResolutionText = "resolution : ${preview.width}x${preview.height}"
         val imageSizeText = "size: ${preview.fileSizeInBytes / 1024}Kb"
         val linkUrl = "${getString(string.action_open_origin_image)}: ${preview.url}"
-        val linkSourceUrl =
-            "${getString(string.action_open_origin_image_source)}: ${item.sourceSite}"
+        val linkSourceUrl = "${getString(string.action_open_origin_image_source)}: ${item.sourceSite}"
         itemView.run {
             title.text = item.title
             image_resolution.text = imageResolutionText
