@@ -5,13 +5,14 @@
     android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    tools:background="@color/colorImagePreview">
+    android:background="@color/backgroundColor"
+    tools:background="@color/itemOnClickOutSideColor">
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/cardview_inside_padding"
-        android:background="#F4F3F3">
+        android:backgroundTint="@color/itemBackgroundColor">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -36,6 +37,7 @@
                 <TextView
                     android:id="@+id/title"
                     style="@style/TextAppearance.MaterialComponents.Subtitle1"
+                    android:textColor="@color/text_subhead_color"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/cardview_padding_after_image"
@@ -46,6 +48,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="@dimen/text_size_medium_priority_info"
+                    android:textColor="@color/text_color"
                     tools:text="2048Kb" />
 
                 <TextView
@@ -53,12 +56,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="@dimen/text_size_low_priority_info"
+                    android:textColor="@color/text_color"
                     tools:text="original size: 1920x1080" />
 
                 <TextView
                     android:id="@+id/link"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:textColor="@color/text_color"
                     android:autoLink="web"
                     android:maxLines="1"
                     android:singleLine="true"
@@ -72,6 +77,7 @@
                     android:id="@+id/link_source"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:textColor="@color/text_color"
                     android:autoLink="web"
                     android:maxLines="1"
                     android:singleLine="true"

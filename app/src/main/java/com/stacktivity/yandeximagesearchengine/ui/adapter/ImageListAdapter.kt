@@ -12,8 +12,7 @@ class ImageListAdapter(
     private val contentProvider: ContentProvider,
     private val imageBufferFilesDir: File,
     private val eventListener: ImageItemViewHolder.EventListener,
-    private val maxImageWidth: Int,
-    private val defaultImageColor: Int
+    private val maxImageWidth: Int
 ) : RecyclerView.Adapter<ImageItemViewHolder>() {
 
     private var parentWidth: Int = 0
@@ -22,7 +21,7 @@ class ImageListAdapter(
         parentWidth = parent.measuredWidth
         val inflater = LayoutInflater.from(parent.context)
         val view = inflater.inflate(R.layout.item_image_list, parent, false)
-        return ImageItemViewHolder(view, eventListener, maxImageWidth, defaultImageColor)
+        return ImageItemViewHolder(view, eventListener, maxImageWidth)
     }
 
     override fun getItemCount() = contentProvider.getItemCount()
@@ -41,7 +40,7 @@ class ImageListAdapter(
         return object : ImageItemViewHolder.ContentProvider {
             override fun getImageRealSourceSite(
                 possibleSource: String,
-                onAsyncResult: (realSource: String?) -> Unit
+                onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit
             ) {
                 contentProvider.getImageRealSourceSite(possibleSource, onAsyncResult)
             }
@@ -67,7 +66,9 @@ class ImageListAdapter(
     interface ContentProvider {
         fun getItemCount(): Int
         fun getItemOnPosition(position: Int): ImageItem
-        fun getImageRealSourceSite(possibleSource: String, onAsyncResult: (realSource: String?) -> Unit)
+        fun getImageRealSourceSite(
+            possibleSource: String,
+            onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit)
         fun setAddImageList(position: Int, list: List<String>)
         fun getAddImagesCountOnPosition(position: Int): Int
         fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String

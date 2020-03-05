@@ -3,7 +3,6 @@ package com.stacktivity.yandeximagesearchengine.data.model
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
-import kotlinx.android.synthetic.main.captcha_dialog.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch

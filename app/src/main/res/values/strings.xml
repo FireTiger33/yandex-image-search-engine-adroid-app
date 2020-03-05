@@ -7,9 +7,18 @@
     <string name="action_open_origin_image_source">Источник</string>
     <string name="action_send">Отправить</string>
 
+    <!-- Error messages -->
     <string name="yandex_bot_error">К сожалению яндекс ограничил доступ к источнику изображения с текущего IP</string>
     <string name="other_images_not_found">Другие изображения не найдены</string>
-    <string name="images_load_failed">Не удалось загрузить изображения</string>
+    <string name="images_load_failed">Не удалось загрузить изображения: </string>
+    
+    <!-- Error messages info -->
+    <string name="server_invalid_response">Получен сервер отправил некорректный ответ</string>
+    <string name="could_not_find_image_real_source">Не удалось найти реальный источник изображения</string>
+    <string name="response_is_not_success">Response code: %1$s</string>
+    <string name="server_is_not_responding">Не удалось получить результат от сервера.
+        Проверьте подключение к интернету.</string>
+    <string name="need_enter_captcha">Требуется ввести капчу</string>
 
     <!-- Captcha -->
     <string name="captcha">Капча</string>

@@ -1,6 +1,5 @@
 package com.stacktivity.yandeximagesearchengine.util
 
-import android.util.Log
 import com.google.gson.Gson
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
@@ -10,8 +9,6 @@ import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAG
 class YandexImageUtil {
 
     companion object {
-        private val tag = YandexImageUtil::class.java.simpleName
-
         /**
          * Retrieves raw data and prepares it by filtering
          * duplicates and images that are too small
@@ -38,7 +35,6 @@ class YandexImageUtil {
                             )
                         )
                     } else {
-                        Log.d(tag, "origin = null: $preview \n all: $item")
                         allImages.add(
                             ImageData(
                                 preview.w, preview.h,
@@ -48,13 +44,12 @@ class YandexImageUtil {
                         )
                     }
                 }
-                allImages.sortedByDescending { it.width }
 
                 imageItem =
                     ImageItem(
                         item.snippet.title,
                         item.snippet.url,
-                        allImages
+                        allImages.sortedByDescending { it.width }
                     )
 
                 imageList.add(imageItem)

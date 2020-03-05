@@ -15,6 +15,7 @@ class SimpleImageListAdapter(
 
     interface EventListener {
         fun onImagesLoadFailed()
+        fun onItemClick(item: String)
     }
 
     var bufferFileBase: String? = null
@@ -34,13 +35,24 @@ class SimpleImageListAdapter(
         return SimpleImageViewHolder(view, this, defaultColor)
     }
 
-    override fun getItemCount(): Int = if (contentProvider != null) contentProvider?.getItemCount()?:0 else 0
+    override fun getItemCount(): Int {
+        if (contentProvider == null) {
+            Log.e("SimpleImageListAdapter", "Need to set contentProvider using [SimpleImageListAdapter#setContentProvider]")
+        }
+
+        return contentProvider?.getItemCount() ?: 0
+    }
 
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
         val bufferFile: File? = if (bufferFileBase != null) {
             File("${bufferFileBase}_$position")
         } else null
-        holder.bind(contentProvider?.getItemOnPosition(position)?:"", bufferFile)
+
+        val item = contentProvider!!.getItemOnPosition(position)
+        holder.bind(item, bufferFile)
+        holder.itemView.setOnClickListener {
+            eventListener.onItemClick(item)
+        }
     }
 
     override fun onImageLoadFailed(imageUrl: String) {
