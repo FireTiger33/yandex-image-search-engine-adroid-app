@@ -3,10 +3,10 @@ package com.stacktivity.yandeximagesearchengine.ui.main
 import android.content.Intent
 import android.graphics.Point
 import android.net.Uri
-import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -28,10 +28,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         setContentView(R.layout.main_activity)
         setSupportActionBar(searchToolBar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
 
         initUI()
-
-        Log.d("MainActivity", "onCreate")
     }
 
     private fun setupImageList() {
