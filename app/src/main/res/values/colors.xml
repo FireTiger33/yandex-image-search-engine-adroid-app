@@ -5,14 +5,11 @@
     <color name="colorAccent">#03DAC5</color>
 
     <color name="backgroundColor">#FFFFFF</color>
-    <color name="itemBackgroundColor">#FFFFFF</color>
     <color name="itemOnClickOutSideColor">#E1E3E6</color>
     <color name="colorImagePreview">#D8D8D8</color>
 
     <color name="simple_image_list_background">#F6F6F6</color>
 
     <!-- Text colors -->
-    <color name="text_subhead_color">#DD000000</color>
-    <color name="text_color">#66000000</color>
     <color name="color_error_msg_enter_captcha">#D32F2F</color>
 </resources>

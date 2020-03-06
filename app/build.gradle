@@ -41,6 +41,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "androidx.core:core-ktx:$androdxCoreVersion"
     implementation "androidx.appcompat:appcompat:$androidxVersion"
+    implementation "androidx.preference:preference:$androidxVersion"
     implementation 'androidx.constraintlayout:constraintlayout:2.0.0-beta4'
     implementation "androidx.recyclerview:recyclerview:$androidxVersion"
     implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version"

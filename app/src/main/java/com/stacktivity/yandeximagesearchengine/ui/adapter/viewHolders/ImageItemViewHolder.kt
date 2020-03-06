@@ -32,7 +32,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
 
-
 /**
  * @param maxImageWidth - max preferred width resolution of image
  */
@@ -64,8 +63,9 @@ class ImageItemViewHolder(
     private lateinit var item: ImageItem
     private lateinit var contentProvider: ContentProvider
     private var currentPreviewNum: Int = -1
+    private var previewColor = getColor(itemView.context, color.colorImagePreview)
     private val otherImageListAdapter = SimpleImageListAdapter(
-        this, getColor(color.colorImagePreview)
+        this, previewColor
     )
     private var isShownOtherImages = false
     private val downloadImageTimeout = 3000
@@ -135,7 +135,7 @@ class ImageItemViewHolder(
             if (isShownOtherImages) {
                 resetOtherImagesView()
             } else {
-                itemView.setBackgroundColor(getColor(color.itemOnClickOutSideColor))
+                itemView.setBackgroundColor(getColor(itemView.context, color.itemOnClickOutSideColor))
                 isShownOtherImages = true
                 if (keyFile.exists()) {  // Data has already been loaded before, load from cache
                     Log.d(tag, "load other images from buffer")
@@ -227,7 +227,7 @@ class ImageItemViewHolder(
         imageDownloadWorkInfoLiveData =
             WorkManager.getInstance(itemView.context).getWorkInfoByIdLiveData(imageDownloadWork.id)
         imageDownloadWorkInfoLiveData?.observe(itemView.context as LifecycleOwner,
-            Observer<WorkInfo> {
+            Observer {
                 Log.d(tag, "Download status: ${it.state}")
                 when (it.state) {
                     WorkInfo.State.SUCCEEDED -> {
@@ -248,7 +248,7 @@ class ImageItemViewHolder(
     private fun getMaxAllowSizePreviewNum(maxImageWidth: Int, minImageWidth: Int): Int {
         item.dups.forEachIndexed { i, preview ->
             if (preview.width <= maxImageWidth) {
-                return if (preview.width >= minImageWidth) i else i - 1
+                return if (preview.width >= minImageWidth || i == 0) i else i - 1
             }
         }
 
@@ -264,7 +264,7 @@ class ImageItemViewHolder(
             val cropFactor: Float = calcImageViewWidth / imageWidth
             val cropHeight: Int = (cropFactor * imageHeight).toInt()
             layoutParams.height = cropHeight
-            setColorFilter(getColor(color.colorImagePreview))
+            setColorFilter(previewColor)
         }
     }
 

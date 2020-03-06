@@ -6,12 +6,15 @@ import android.net.Uri
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.WindowManager
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.ui.SettingsActivity
 import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
 import com.stacktivity.yandeximagesearchengine.util.Constants
 import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
@@ -131,5 +134,22 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
     override fun onQueryTextChange(newText: String?): Boolean {
         return false
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main, menu)
+
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when(item.itemId) {
+            R.id.settings -> {
+                SettingsActivity.start(this)
+                return true
+            }
+
+            else -> return super.onOptionsItemSelected(item)
+        }
     }
 }

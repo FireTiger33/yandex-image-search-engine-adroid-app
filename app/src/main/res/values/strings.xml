@@ -3,6 +3,8 @@
     <string name="hint_search">search</string>
     <string name="image">Изображение</string>
 
+    <string name="title_settings">Настройки</string>
+
     <string name="action_open_origin_image">Открыть оригинал</string>
     <string name="action_open_origin_image_source">Источник</string>
     <string name="action_send">Отправить</string>
