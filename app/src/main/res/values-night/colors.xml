@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorAccent">#018c7e</color>
+    <color name="colorAccent">#01618D</color>
 
     <color name="backgroundColor">#19191A</color>
     <color name="itemOnClickOutSideColor">#363738</color>
