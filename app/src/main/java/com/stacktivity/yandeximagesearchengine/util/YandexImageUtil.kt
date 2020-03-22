@@ -45,14 +45,16 @@ class YandexImageUtil {
                     }
                 }
 
-                imageItem =
-                    ImageItem(
-                        item.snippet.title,
-                        item.snippet.url,
-                        allImages.sortedByDescending { it.width }
-                    )
+                if (allImages.isNotEmpty()) {
+                    imageItem =
+                        ImageItem(
+                            item.snippet.title,
+                            item.snippet.url,
+                            allImages.sortedByDescending { it.width }
+                        )
 
-                imageList.add(imageItem)
+                    imageList.add(imageItem)
+                }
             }
 
             return imageList
