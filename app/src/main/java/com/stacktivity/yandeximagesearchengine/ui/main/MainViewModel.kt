@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
+import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.YandexRepository
@@ -44,7 +45,7 @@ class MainViewModel : ViewModel() {
 
     private val imageBufferFilesDir: File
         get() {
-            return App.getInstance().filesDir
+            return App.getInstance().cacheDir
         }
 
     private var adapter: ImageListAdapter? = null
@@ -120,6 +121,7 @@ class MainViewModel : ViewModel() {
         isLastPage = false
         numLoadedPages = 0
         currentQuery = query
+        NetworkStateReceiver.getInstance().removeAllListeners()
         fetchImagesOnNextPage()
     }
 

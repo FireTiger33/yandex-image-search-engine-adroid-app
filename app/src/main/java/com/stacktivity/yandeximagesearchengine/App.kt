@@ -3,6 +3,7 @@ package com.stacktivity.yandeximagesearchengine
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
+import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 
 class App: Application() {
 
@@ -16,6 +17,8 @@ class App: Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        NetworkStateReceiver.register(applicationContext)
 
         val sp = PreferenceManager.getDefaultSharedPreferences(this)
         if (sp.contains("darkTheme")) {

@@ -7,14 +7,11 @@ import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.RecyclerView
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.Observer
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.stacktivity.yandeximagesearchengine.R.string
 import com.stacktivity.yandeximagesearchengine.R.color
+import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
@@ -25,6 +22,7 @@ import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
 import com.stacktivity.yandeximagesearchengine.util.getColor
 import com.stacktivity.yandeximagesearchengine.util.getString
 import com.stacktivity.yandeximagesearchengine.util.shortToast
+import com.stacktivity.yandeximagesearchengine.util.observeOnce
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -39,7 +37,7 @@ class ImageItemViewHolder(
     itemView: View,
     private val eventListener: EventListener,
     private val maxImageWidth: Int
-) : RecyclerView.ViewHolder(itemView), SimpleImageListAdapter.EventListener {
+) : BaseImageViewHolder(itemView), SimpleImageListAdapter.EventListener {
 
     private val tag = ImageItemViewHolder::class.java.simpleName
 
@@ -68,9 +66,7 @@ class ImageItemViewHolder(
         this, previewColor
     )
     private var isShownOtherImages = false
-    private val downloadImageTimeout = 3000
     private var parserJob: Job? = null
-    private var imageDownloadWorkInfoLiveData: LiveData<WorkInfo>? = null
 
     init {
         itemView.other_image_list_rv.adapter = otherImageListAdapter
@@ -97,21 +93,36 @@ class ImageItemViewHolder(
             }
         }
 
-        currentPreviewNum = getMaxAllowSizePreviewNum(maxImageWidth, maxImageWidth / 2)  // TODO get width from settings
+        currentPreviewNum = getMaxAllowSizePreviewNum(
+            maxImageWidth,
+            maxImageWidth / 2
+        )  // TODO get width from settings
         Log.d(tag, "bind item: $item")
         val cropFactor = maxImageWidth.toFloat() / item.dups[currentPreviewNum].width
         val reqWidth = maxImageWidth
         val reqHeight = (item.dups[currentPreviewNum].height * cropFactor).toInt()
         prepareImageView(parentWidth, reqWidth, reqHeight)
 
-        downloadBitmap(bufferFile, reqWidth = reqWidth) { imageBitmap ->
-            if (imageBitmap != null) {
-                prepareImageView(parentWidth, imageBitmap.width, imageBitmap.height)
-                applyBitmapToView(imageBitmap)
-            } else {
-                eventListener.onImageLoadFailed(item)
+        val imageBitmapLiveData = downloadBitmap(reqWidth = reqWidth)
+        val startTime = System.currentTimeMillis()
+        bitmapObserver = object: BitmapObserver() {
+            override fun onChanged(bitmap: Bitmap?) {
+                Log.d(tag, "download ${System.currentTimeMillis() - startTime}ms")
+                if (bitmap != null) {
+                    if (requiredToShow) {
+                        prepareImageView(parentWidth, bitmap.width, bitmap.height)
+                        applyBitmapToView(bitmap)
+                    }
+
+                    GlobalScope.launch(Dispatchers.IO) {
+                        BitmapUtils.saveBitmapToFile(bitmap, bufferFile)
+                    }
+                } else {
+                    eventListener.onImageLoadFailed(item)
+                }
             }
         }
+        imageBitmapLiveData.observeOnce(itemView.context as LifecycleOwner, bitmapObserver)
     }
 
     override fun onImagesLoadFailed() {
@@ -124,8 +135,7 @@ class ImageItemViewHolder(
     }
 
     private fun reset(otherImagesBufferFileBase: String) {
-//        imageDownloadWork?.let { WorkManager.getInstance(itemView.context).cancelWorkById(it.id) }
-        imageDownloadWorkInfoLiveData?.removeObservers(itemView.context as LifecycleOwner)
+        bitmapObserver.requiredToShow = false
         resetOtherImagesView()
         parserJob?.cancel()
         currentPreviewNum = -1
@@ -203,46 +213,13 @@ class ImageItemViewHolder(
         })
     }
 
-    private fun downloadBitmap(
-        bufferFile: File,
-        reqWidth: Int? = null,
-        reqHeight: Int? = null,
-        onAsyncResult: (bitmap: Bitmap?) -> Unit
-    ) {
+    private fun downloadBitmap(reqWidth: Int? = null, reqHeight: Int? = null): LiveData<Bitmap?> {
         val imageUrls: Array<String> = (
                 item.dups.slice(0..currentPreviewNum).reversed() +
                         item.dups.slice(currentPreviewNum + 1 until item.dups.size)
                 ).map { x -> x.url }.toTypedArray()
-        val imageDownloadWork = ImageDownloadHelper.getWorkForLoadAndSaveImage(
-            imageUrls,
-            bufferFile,
-            reqWidth,
-            reqHeight,
-            downloadImageTimeout
-        )
 
-        // Start image download
-        WorkManager.getInstance(itemView.context).enqueue(imageDownloadWork)
-
-        imageDownloadWorkInfoLiveData =
-            WorkManager.getInstance(itemView.context).getWorkInfoByIdLiveData(imageDownloadWork.id)
-        imageDownloadWorkInfoLiveData?.observe(itemView.context as LifecycleOwner,
-            Observer {
-                Log.d(tag, "Download status: ${it.state}")
-                when (it.state) {
-                    WorkInfo.State.SUCCEEDED -> {
-                        val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
-                        onAsyncResult(imageBitmap)
-                    }
-
-                    WorkInfo.State.FAILED -> {
-                        onAsyncResult(null)
-                    }
-
-                    else -> { }
-                }
-            }
-        )
+        return ImageDownloadHelper.getInstance().getOneOfBitmap(tag, imageUrls, reqWidth, reqHeight, 3000)
     }
 
     private fun getMaxAllowSizePreviewNum(maxImageWidth: Int, minImageWidth: Int): Int {

@@ -31,8 +31,8 @@ android {
         jvmTarget = JavaVersion.VERSION_1_8
     }
 
-    /*dataBinding {
-        enabled = true
+    /*buildFeatures{
+        dataBinding = true
     }*/
 }
 
@@ -51,16 +51,12 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutine_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutine_version"
 
-    // WorkManager
-    implementation 'androidx.work:work-runtime-ktx:2.3.2'
 
     // Retrofit
     implementation 'com.squareup.retrofit2:retrofit:2.5.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.3.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:3.9.1'
 
-    // Databinding compiler
-//    kapt 'com.android.databinding:compiler:3.2.0-alpha10'
 
     // Design
     implementation 'com.google.android.material:material:1.2.0-alpha05'
