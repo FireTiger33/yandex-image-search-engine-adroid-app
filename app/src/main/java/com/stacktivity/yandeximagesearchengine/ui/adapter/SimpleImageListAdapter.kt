@@ -44,11 +44,12 @@ class SimpleImageListAdapter(
     }
 
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
+        val item = contentProvider!!.getItemOnPosition(position)
+
         val bufferFile: File? = if (bufferFileBase != null) {
-            File("${bufferFileBase}_$position")
+            File("${bufferFileBase}_${item.hashCode()}")
         } else null
 
-        val item = contentProvider!!.getItemOnPosition(position)
         holder.bind(item, bufferFile)
         holder.itemView.setOnClickListener {
             eventListener.onItemClick(item)
