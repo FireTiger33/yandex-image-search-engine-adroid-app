@@ -117,7 +117,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
     private fun initUI() {
         searchView = searchToolBar.findViewById(R.id.search)
-        searchView.setOnQueryTextListener(this)
+        searchView.run {
+            setOnQueryTextListener(this@MainActivity)
+            isFocusable = true
+            isIconified = false
+            requestFocusFromTouch()
+        }
+
         setupImageList()
         setupObservers()
     }
