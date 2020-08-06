@@ -33,13 +33,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         supportActionBar?.setDisplayShowTitleEnabled(false)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
 
-        initUI()
+        if (savedInstanceState == null) {
+            initUI()
+        }
     }
 
     private fun setupImageList() {
         val size = Point()
         windowManager.defaultDisplay.getSize(size)
-        val maxImageWidth = (size.x * 0.8).toInt()
+        val maxImageWidth = (size.x * 0.9).toInt()
         val layoutManager = image_list_rv.layoutManager as LinearLayoutManager
         image_list_rv.adapter = viewModel.getImageItemListAdapter(maxImageWidth)
         image_list_rv.addOnScrollListener(getImageScrollListener(layoutManager))
