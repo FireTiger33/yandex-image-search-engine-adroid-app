@@ -10,7 +10,7 @@ import java.net.URL
 
 class ImageParser {
     companion object {
-        private val imageLinkRegex: Regex = Regex("((https?://)?(([^\\s\"](?!https?))+?\\.(jpe?g|png|gif))+)")
+        private val imageLinkRegex: Regex = Regex("((https?:/)?(/([^\\s\"](?!https?))+(jpe?g|png|gif))+)")
         private val protocolNotFoundRegex: Regex = Regex("^/{2}")
 
         /**
