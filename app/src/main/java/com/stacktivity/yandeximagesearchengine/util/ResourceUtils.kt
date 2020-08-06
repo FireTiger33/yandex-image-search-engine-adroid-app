@@ -9,6 +9,11 @@ fun getColor(context: Context, @ColorRes colorId: Int): Int {
     return context.resources.getColor(colorId, context.theme)
 }
 
+fun getColor(@ColorRes colorId: Int): Int {
+    val context = App.getInstance()
+    return context.resources.getColor(colorId, context.theme)
+}
+
 fun getString(@StringRes stringIdRes: Int): String {
     return App.getInstance().getString(stringIdRes)
 }
