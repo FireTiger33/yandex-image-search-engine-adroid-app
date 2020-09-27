@@ -64,5 +64,27 @@ class FileWorker {
 
             return list
         }
+
+        /**
+         * Save [kotlin.ByteArray] to file
+         *
+         * @return false in case of an [IOException]
+         */
+        fun saveBytesToFile(buffer: ByteArray, file: File): Boolean {
+            var res = false
+
+            try {
+                FileOutputStream(file).use {
+                    it.write(buffer)
+                    it.flush()
+                }
+                res = true
+            } catch (e: IOException) {
+                // res = false
+                e.printStackTrace()
+            }
+
+            return res
+        }
     }
 }
