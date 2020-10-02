@@ -10,7 +10,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
 import androidx.appcompat.widget.SearchView
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
@@ -22,7 +21,6 @@ import com.stacktivity.yandeximagesearchengine.util.hideKeyboard
 import kotlinx.android.synthetic.main.main_activity.*
 
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
-
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
 
@@ -33,34 +31,50 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         supportActionBar?.setDisplayShowTitleEnabled(false)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
 
-        if (savedInstanceState == null) {
-            initUI()
+        initUI(savedInstanceState)
+    }
+
+    private fun initUI(savedInstanceState: Bundle?) {
+        setupSearchView(requestFocus = savedInstanceState == null)
+        setupImageList()
+        setupObservers()
+    }
+
+    private fun setupSearchView(requestFocus: Boolean) {
+        searchView = searchToolBar.findViewById(R.id.search)
+        searchView.run {
+            setOnQueryTextListener(this@MainActivity)
+            isFocusable = true
+            isIconified = false
+            if (requestFocus) {
+                requestFocusFromTouch()
+            }
         }
     }
 
     private fun setupImageList() {
         val size = Point()
         windowManager.defaultDisplay.getSize(size)
-        val maxImageWidth = (size.x * 0.9).toInt()
+        val maxImageWidth = size.x
         val layoutManager = image_list_rv.layoutManager as LinearLayoutManager
         image_list_rv.adapter = viewModel.getImageItemListAdapter(maxImageWidth)
         image_list_rv.addOnScrollListener(getImageScrollListener(layoutManager))
     }
 
     private fun setupObservers() {
-        viewModel.dataLoading.observe(this, Observer {
+        viewModel.dataLoading.observe(this, {
             progress_bar.visibility =
-                if (it /*&& viewModel.empty.value != false*/) View.VISIBLE
+                if (it) View.VISIBLE
                 else View.GONE
         })
 
-        viewModel.newQueryIsLoaded.observe(this, Observer {
+        viewModel.newQueryIsLoaded.observe(this, {
             if (it && image_list_rv.childCount > 0) {
                 image_list_rv.scrollToPosition(0)
             }
         })
 
-        viewModel.onImageClickEvent.observe(this, Observer {
+        viewModel.onImageClickEvent.observe(this, {
             it.getContentIfNotHandled()?.let { imageUrl ->
                 startActivity(
                     Intent(Intent.ACTION_VIEW)
@@ -69,7 +83,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
             }
         })
 
-        viewModel.captchaEvent.observe(this, Observer {
+        viewModel.captchaEvent.observe(this, {
             it.getContentIfNotHandled()?.let { imageUrl ->
                 val dialog = CaptchaDialog(
                     imageUrl = imageUrl,
@@ -89,23 +103,19 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
+                val currentFirstVisibleItem = layoutManager.findFirstVisibleItemPosition()
+                val lastVisibleItemPosition: Int = layoutManager.findLastVisibleItemPosition()
+                val itemCount = layoutManager.itemCount
 
                 // Show / hide SearchToolbar
-                val currentFirstVisibleItem = layoutManager.findFirstVisibleItemPosition()
-
                 if (currentFirstVisibleItem > this.mLastFirstVisibleItem) {
                     ToolbarDemonstrator.hideActionBar(searchToolBar, supportActionBar!!, 200)
                 } else if (currentFirstVisibleItem < this.mLastFirstVisibleItem) {
                     ToolbarDemonstrator.showActionBar(searchToolBar, supportActionBar!!, 200)
                 }
-
                 this.mLastFirstVisibleItem = currentFirstVisibleItem
 
-
                 // Request to load a new batch of images when 40% of the current batch is reached
-                val itemCount = layoutManager.itemCount
-                val lastVisibleItemPosition: Int = layoutManager.findLastVisibleItemPosition()
-
                 if (itemCount - lastVisibleItemPosition <= Constants.PAGE_SIZE * 0.4) {
                     viewModel.fetchImagesOnNextPage()
                 }
@@ -115,19 +125,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
                     else View.GONE
             }
         }
-    }
-
-    private fun initUI() {
-        searchView = searchToolBar.findViewById(R.id.search)
-        searchView.run {
-            setOnQueryTextListener(this@MainActivity)
-            isFocusable = true
-            isIconified = false
-            requestFocusFromTouch()
-        }
-
-        setupImageList()
-        setupObservers()
     }
 
     override fun onQueryTextSubmit(query: String?): Boolean {
@@ -151,13 +148,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when(item.itemId) {
+        return when(item.itemId) {
             R.id.settings -> {
                 SettingsActivity.start(this)
-                return true
+                true
             }
 
-            else -> return super.onOptionsItemSelected(item)
+            else -> super.onOptionsItemSelected(item)
         }
     }
 }
