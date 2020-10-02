@@ -1,20 +1,35 @@
 package com.stacktivity.yandeximagesearchengine.data
 
-class MainRepository {
-    private val imageList = ArrayList<ImageItem>()
-    private val addImageMapList: HashMap<Int, ArrayList<String>> = hashMapOf()
+import android.util.ArrayMap
 
-    fun getImageList(): ArrayList<ImageItem> = imageList
+class MainRepository {
+    private val imageList: ArrayMap<Int, ImageItem> = ArrayMap()
+    private val addImageMapList: HashMap<Int, ArrayList<String>> = hashMapOf()
+    private var putIndex = 0
+
+    fun getImageOnPosition(position: Int): ImageItem {
+        return imageList.valueAt(position)
+    }
 
     fun getImageCount(): Int = imageList.size
 
-    fun addToImageList(itemList: List<ImageItem>) = imageList.addAll(itemList)
-
-    fun deleteFromImageList(index: Int) {
-        imageList.removeAt(index)
+    fun addToImageList(itemList: List<ImageItem>) {
+        imageList.putAll(itemList.mapIndexed { i, imageItem -> Pair(i + putIndex, imageItem) })
+        putIndex += itemList.size
     }
 
-//    fun clearImageList() = imageList.clear()
+    /**
+     * Removes an [ImageItem] from storage
+     *
+     * @return sequence number of deleted item
+     */
+    fun deleteFromImageList(item: ImageItem): Int? {
+        val res = imageList.indexOfKey(item.itemNum)
+        imageList.remove(item.itemNum)
+
+        return res
+    }
+
 
     /**
      * Create a separate list for additional images
