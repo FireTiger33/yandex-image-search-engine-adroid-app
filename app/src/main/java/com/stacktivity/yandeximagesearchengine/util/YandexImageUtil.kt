@@ -17,10 +17,10 @@ class YandexImageUtil {
          *
          * @return list of ImageItem with prepared data for future use
          */
-        fun getImageItemListFromHtml(html: String): List<ImageItem> {
+        fun getImageItemListFromHtml(lastIndex: Int, html: String): List<ImageItem> {
             val imageList: ArrayList<ImageItem> = arrayListOf()
             var imageItem: ImageItem
-            getSerpListFromHtml(html).forEach { item ->
+            getSerpListFromHtml(html).forEachIndexed { itemNum, item ->
                 val allImages: ArrayList<ImageData> = ArrayList()
                 val allPreview = (item.preview + item.dups)
                     .distinctBy { it.origin?.url?: it.url }
@@ -48,6 +48,7 @@ class YandexImageUtil {
                 if (allImages.isNotEmpty()) {
                     imageItem =
                         ImageItem(
+                            itemNum + lastIndex,
                             item.snippet.title,
                             item.snippet.url,
                             allImages.sortedByDescending { it.width }
