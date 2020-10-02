@@ -4,6 +4,7 @@ package com.stacktivity.yandeximagesearchengine.data
 * Main class used to store search result element
 */
 data class ImageItem(
+    val itemNum: Int,
     val title: String,
     var sourceSite: String,
     val dups: List<ImageData>
