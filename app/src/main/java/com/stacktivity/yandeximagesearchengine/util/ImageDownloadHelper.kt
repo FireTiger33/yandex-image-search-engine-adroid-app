@@ -2,24 +2,13 @@ package com.stacktivity.yandeximagesearchengine.util
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import com.stacktivity.yandeximagesearchengine.BuildConfig.DEBUG
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.*
-import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.nio.ByteBuffer
 
 class ImageDownloadHelper private constructor() {
 
     companion object {
         val tag = ImageDownloadHelper::class.java.simpleName
-        var maxQueueCount: Int = 2  // number of images loading simultaneously
+        var maxQueueCount: Int = 3  // number of images loading simultaneously
 
         private var INSTANCE: ImageDownloadHelper? = null
         fun getInstance() = INSTANCE
@@ -28,150 +17,49 @@ class ImageDownloadHelper private constructor() {
             }
     }
 
-    private class ImageDownloader(
-        private val url: String,
-        private val reqWidth: Int? = null, private val reqHeight: Int? = null,
-        private val timeoutMs: Long? = null,
-        private val onResult: (bitmap: Bitmap?) -> Unit
-    ) : NetworkStateReceiver.NetworkListener() {
-        private var job: Job? = null
-
-        companion object {
-            private val client = OkHttpClient.Builder().apply {
-                if (DEBUG) {
-                    eventListener(object : EventListener() {
-                        override fun callStart(call: Call) {
-                            super.callStart(call)
-                            Log.d(tag, "Load url: ${call.request().url()}")
-                        }
-
-                        override fun callFailed(call: Call, ioe: IOException) {
-                            // TODO if CertPathValidatorException use proxy
-                            Log.e(tag, "connectionFailed: ${ioe.message}, url = ${call.request().url()}")
-                        }
-                    })
-                }
-            }.build()
-        }
-
-        override fun onNetworkIsConnected(onSuccess: () -> Unit) {
-            job = downloadBitmap(url, reqWidth, reqHeight, timeoutMs) { bitmap ->
-                onSuccess()
-                onResult(bitmap)
-            }
-        }
-
-        override fun onNetworkIsDisconnected() {
-            job?.cancel()
-        }
-
-        override fun onCancel() {
-            job?.cancel()
-        }
-
-        /**
-         * Asynchronous image loading using [OkHttpClient]
-         *
-         * @param url       - direct link to image
-         * @param reqWidth  - required max width to size reduce, can be omitted
-         * @param reqHeight - required max height to size reduce, can be omitted
-         * @param timeoutMs - connect timeout, can be omitted
-         * @param onResult  - function without a return value,
-         *                    which will be passed the result of the load.
-         *                    Called in the main thread
-         *
-         * @return [Job] for task managing
-         */
-        private fun downloadBitmap(
-            url: String,
-            reqWidth: Int? = null, reqHeight: Int? = null,
-            timeoutMs: Long? = null,
-            onResult: (bitmap: Bitmap?) -> Unit
-        ): Job = GlobalScope.launch(Dispatchers.IO) {
-            var bitmap: Bitmap? = null
-
-            /** Possible to catch exceptions:
-             * 1) SocketTimeoutException
-             * 2) OutOfMemoryError
-             * 3) CertPathValidatorException */
-            try {
-                val stream = if (timeoutMs != null) {
-                    client.newBuilder()
-                        .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                        .readTimeout(1000, TimeUnit.MILLISECONDS)
-                        .build()
-                } else {
-                    client
-                }
-                    .newCall(
-                        Request.Builder()
-                            .url(url)
-                            .get()
-                            .build()
-                    )
-                    .execute().body()?.byteStream()
-
-                bitmap = if (reqWidth != null || reqHeight != null) {
-                    try {
-                        with(BitmapFactory.decodeStream(stream)) {
-                            val mReqWidth: Int = reqWidth
-                                ?: (reqHeight!!.toFloat() / this.height * this.width).toInt()
-                            val mReqHeight: Int = reqHeight
-                                ?: (reqWidth!!.toFloat() / this.width * this.height).toInt()
-
-                            if (mReqWidth < this.width) {
-                                this
-                            } else {
-                                Bitmap.createScaledBitmap(this, mReqWidth, mReqHeight, false)
-                            }
-                        }
-                    } catch (e: RuntimeException) {
-                        null
-                    }
-                } else {
-                    BitmapFactory.decodeStream(stream)
-                }
-            } catch (e: OutOfMemoryError) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    shortToast("OutOfMemory")
-                }
-            } catch (e: IOException) {
-            }
-
-            withContext(Dispatchers.Main) {
-                onResult(bitmap)
-            }
-        }
+    abstract class ImageObserver {
+        abstract fun onBitmapResult(bitmap: Bitmap?)
+        abstract fun onGifResult(buffer: ByteBuffer)
     }
 
-    fun getOneOfBitmap(
+    fun getOneOfImage(
         poolTag: String,
         urls: Array<String>,
         reqWidth: Int? = null, reqHeight: Int? = null,
-        timeoutMs: Long? = null
-    ): LiveData<Bitmap?> {
-        val bitmapLiveData = MutableLiveData<Bitmap?>()
+        minWidth: Int? = null, minHeight: Int? = null,
+        timeoutMs: Long? = null,
+        imageObserver: ImageObserver
+    ) {
         val listener = object : Runnable {
             private var i = 0
-
-            override fun run() {
-                if (i < urls.size) {
-                    getBitmapAsync(poolTag, urls[i], reqWidth, reqHeight, timeoutMs) { bitmap ->
-                        if (bitmap != null) bitmapLiveData.value = bitmap
-                        else run()
+            private val localObserver = object: ImageObserver() {
+                override fun onBitmapResult(bitmap: Bitmap?) {
+                    if (bitmap != null
+                            && bitmap.width >= minWidth?: bitmap.width
+                            && bitmap.height >= minHeight?: bitmap.height) {
+                        imageObserver.onBitmapResult(bitmap)
                     }
+                    else {
+                        if (++i < urls.size) {
+                            run()
+                        } else {
+                            imageObserver.onBitmapResult(null)
+                        }
+                    }
+                }
+
+                override fun onGifResult(buffer: ByteBuffer) {
+                    imageObserver.onGifResult(buffer)
                     i++
-                } else {
-                    bitmapLiveData.value = null
                 }
             }
 
+            override fun run() {
+                getImageAsync(poolTag, urls[i], reqWidth, reqHeight, timeoutMs, localObserver)
+            }
         }
 
         listener.run()
-
-        return bitmapLiveData
     }
 
     /**
@@ -179,7 +67,8 @@ class ImageDownloadHelper private constructor() {
      *
      * If only one of required resolution parameters is set, image will change proportionally
      *
-     * @param url       the direct link to image
+     * @param poolTag   images with different pool tags are loaded in parallel
+     * @param url       direct link to image
      * @param timeoutMs max time to wait for connection to image server in milliseconds
      * @param reqWidth  required width
      * @param reqHeight required height
@@ -193,35 +82,71 @@ class ImageDownloadHelper private constructor() {
         timeoutMs: Long? = null,
         onResult: (bitmap: Bitmap?) -> Unit
     ) {
-        if (NetworkStateReceiver.getInstance().getListenersCountByTag(poolTag) == null) {
-            NetworkStateReceiver.getInstance().addNewPoolListeners(poolTag, maxQueueCount)
-        }
+        checkPool(poolTag)
 
         NetworkStateReceiver.getInstance().addListener(
             poolTag,
-            ImageDownloader(url, reqWidth, reqHeight, timeoutMs, onResult)
+            ByteArrayDownloader(url, timeoutMs) { buffer ->
+                onResult(getBitmap(buffer, reqWidth, reqHeight))
+            }
         )
     }
 
-    fun getBitmapAsync(
+    fun getImageAsync(
         poolTag: String,
         url: String,
         reqWidth: Int? = null, reqHeight: Int? = null,
-        timeoutMs: Long? = null
-    ): LiveData<Bitmap?> {
-        val bitmapLiveData = MutableLiveData<Bitmap>()
-
-        if (NetworkStateReceiver.getInstance().getListenersCountByTag(poolTag) == null) {
-            NetworkStateReceiver.getInstance().addNewPoolListeners(poolTag, maxQueueCount)
-        }
+        timeoutMs: Long? = null,
+        imageObserver: ImageObserver
+    ) {
+        checkPool(poolTag)
 
         NetworkStateReceiver.getInstance().addListener(
             poolTag,
-            ImageDownloader(url, reqWidth, reqHeight, timeoutMs) { bitmap ->
-                bitmapLiveData.value = bitmap
+            ByteArrayDownloader(url, timeoutMs) { buffer ->
+                buffer?.rewind()
+                if (buffer != null && buffer.capacity() > 3) {
+                    val head = ByteArray(3)
+                    buffer.get(head, 0, 3)
+                    buffer.rewind()
+                    if (head.toString(Charsets.UTF_8) == "GIF") {
+                        imageObserver.onGifResult(buffer)
+                    } else {
+                        imageObserver.onBitmapResult(getBitmap(buffer, reqWidth, reqHeight))
+                    }
+                } else {
+                    imageObserver.onBitmapResult(null)
+                }
             }
         )
+    }
 
-        return bitmapLiveData
+    private fun checkPool(poolTag: String) {
+        if (NetworkStateReceiver.getInstance().getListenersCountByTag(poolTag) == null) {
+            NetworkStateReceiver.getInstance().addNewPoolListeners(poolTag, maxQueueCount)
+        }
+    }
+
+    private fun getBitmap(buffer: ByteBuffer?, reqWidth: Int?, reqHeight: Int?): Bitmap? {  // TODO return cropped and original bitmap
+        buffer?.rewind()
+        val byteArray = ByteArray(buffer?.remaining()?: 0)
+        buffer?.get(byteArray)
+        val preResult: Bitmap? = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+
+        return if (preResult != null && (reqWidth != null || reqHeight != null)) {
+            // Calc out image size
+            val mReqWidth: Int = reqWidth
+                ?: (reqHeight!!.toFloat() / preResult.height * preResult.width).toInt()
+            val mReqHeight: Int = reqHeight
+                ?: (reqWidth!!.toFloat() / preResult.width * preResult.height).toInt()
+
+            if (mReqWidth >= preResult.width) {
+                preResult
+            } else {
+                Bitmap.createScaledBitmap(preResult, mReqWidth, mReqHeight, false)
+            }
+        } else {
+            preResult
+        }
     }
 }

@@ -5,7 +5,8 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.createFile
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -15,6 +16,30 @@ class BitmapUtils {
 
     companion object {
         private val tag = BitmapUtils::class.java.simpleName
+
+        /**
+         * Checks whether file has a known image format.
+         *
+         * If the file has an unknown mimetype (non-image), it returns false.
+         */
+        fun fileIsAnImage(filePath: String): Boolean {
+            val options = BitmapFactory.Options()
+            options.inJustDecodeBounds = true
+            BitmapFactory.decodeFile(filePath, options)
+
+            return options.outMimeType != null
+        }
+
+        /**
+         * Checks whether file is a gif image
+         */
+        fun fileIsAnGifImage(filePath: String): Boolean {
+            val options = BitmapFactory.Options()
+            options.inJustDecodeBounds = true
+            BitmapFactory.decodeFile(filePath, options)
+
+            return options.outMimeType == "image/gif"
+        }
 
         /**
          * Simplifies Bitmap to desired resolution
@@ -31,6 +56,10 @@ class BitmapUtils {
 
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(imagePath, options)
+            if (options.outMimeType == null) {
+                return null
+            }
+
             if (reqHeight < 0) {
                 validReqWidth = reqWidth
                 cropFactor = reqWidth / options.outWidth.toFloat()
@@ -47,46 +76,47 @@ class BitmapUtils {
             return BitmapFactory.decodeFile(imagePath, options)
         }
 
-        suspend fun saveBitmapToFile(bitmap: Bitmap, destFile: File): Boolean =
-            withContext(Dispatchers.IO) {
-                var res = false
-                val bos = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
-                val inputByteArray = bos.toByteArray()
+        /**
+         * Non-blocking function for saving Bitmap to file
+         * without loss of quality
+         */
+        fun saveBitmapToFile(bitmap: Bitmap, destFile: File) =
+                GlobalScope.launch(Dispatchers.IO) {
+                    val bos = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
 
-                if (!destFile.exists()) {
-                    if (createFile(destFile)) {
-                        try {
-                            with(FileOutputStream(destFile)) {
-                                this.write(inputByteArray)
-                                Log.d(tag, "image save complete: ${destFile.path}")
-                            }
-                            res = true
-                        } catch (e: IOException) {
-                            Log.e(tag, "saveBitmapToFile: I/O error")
+                    if (!destFile.exists()) {
+                        if (!createFile(destFile)) {
+                            return@launch
                         }
+                    }
+
+                    try {
+                        with(FileOutputStream(destFile)) {
+                            this.write(bos.toByteArray())
+                        }
+                    } catch (e: IOException) {
+                        // TODO delete cache
+                        Log.e(tag, "saveBitmapToFile: I/O error")
                     }
                 }
 
-                return@withContext res
-            }
-
         fun getBitmapFromFile(imageFile: File): Bitmap? {
-            Log.d(tag, "get bitmap from: ${imageFile.path}")
+            Log.i(tag, "get bitmap from: ${imageFile.path}")
             var res: Bitmap? = null
             try {
                 res = BitmapFactory.decodeFile(imageFile.path, null)
             } catch (e: OutOfMemoryError) {
-                e.printStackTrace()
+                Log.e(tag, "OutOfMemory on get bitmap from file")
             }
 
             return res
         }
 
         private fun calculateInSampleSize(
-            options: BitmapFactory.Options,
-            reqWidth: Int,
-            reqHeight: Int
+                options: BitmapFactory.Options,
+                reqWidth: Int,
+                reqHeight: Int
         ): Int {
             val height = options.outHeight
             val width = options.outWidth
@@ -96,7 +126,7 @@ class BitmapUtils {
                 val halfWidth = width / 2
 
                 while (halfHeight / inSampleSize > reqHeight
-                    && halfWidth / inSampleSize > reqWidth
+                        && halfWidth / inSampleSize > reqWidth
                 ) {
                     inSampleSize *= 2
                 }

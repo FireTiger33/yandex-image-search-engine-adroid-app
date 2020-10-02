@@ -19,14 +19,12 @@
             android:orientation="vertical"
             android:padding="@dimen/cardview_outside_padding">
 
-            <ImageView
-                android:id="@+id/image"
+            <pl.droidsonroids.gif.GifImageView
+                android:id="@+id/gifView"
                 android:layout_width="match_parent"
                 android:layout_height="200dp"
-                android:layout_gravity="center"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_launcher_background"
-                tools:ignore="ContentDescription" />
+                android:scaleType="fitCenter"
+                android:src="@color/colorImagePreview" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
