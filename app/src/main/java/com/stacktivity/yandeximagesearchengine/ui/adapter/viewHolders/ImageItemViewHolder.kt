@@ -1,7 +1,6 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 
 import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
@@ -57,20 +56,21 @@ internal class ImageItemViewHolder(
         this.item = item
         reset()
         bindTextViews(item.dups[0])
-
+        showProgressBar()
         if (bufferFile != null && bufferFile.exists()) {
-            if (applyImageFromCache(bufferFile))
+            if (applyImageFromCache(bufferFile)) {
+                hideProgressBar()
                 return
+            }
         }
 
         currentPreviewNum = getMaxAllowSizePreviewNum(
-                maxImageWidth,
-                maxImageWidth / 2
+                maxImageWidth = maxImageWidth,
+                minImageWidth = maxImageWidth / 2
         )  // TODO get width from settings
         val imageWidth = item.dups[currentPreviewNum].width
         val imageHeight = item.dups[currentPreviewNum].height
-        val viewHeight = calculateViewHeight(maxImageWidth, imageWidth, imageHeight)
-        prepareImageView(imageWidth, viewHeight)
+        prepareImageView(imageWidth, imageHeight)
 
         imageObserver = getImageObserver(bufferFile)
         downloadImage(
@@ -83,11 +83,19 @@ internal class ImageItemViewHolder(
         return item.itemNum
     }
 
-    fun showProgressBar() {
+    private fun showProgressBar() {
+        itemView.image_load_progress_bar.visibility = View.VISIBLE
+    }
+
+    private fun hideProgressBar() {
+        itemView.image_load_progress_bar.visibility = View.GONE
+    }
+
+    fun showAdditionalProgressBar() {
         itemView.progress_bar.visibility = View.VISIBLE
     }
 
-    fun hideProgressBar() {
+    fun hideAdditionalProgressBar() {
         itemView.progress_bar.visibility = View.GONE
     }
 
@@ -103,6 +111,7 @@ internal class ImageItemViewHolder(
                 if (bitmap != null) {
                     if (requiredToShow) {
                         applyBitmapToView(bitmap)
+                        hideProgressBar()
                     }
 
                     if (bufferFile != null) {
@@ -117,9 +126,10 @@ internal class ImageItemViewHolder(
             override fun onGifResult(buffer: ByteBuffer) {
                 if (requiredToShow) {
                     applyGifToView(buffer)
-                    if (bufferFile != null) {
-                        saveImageToCache(buffer, bufferFile)
-                    }
+                    hideProgressBar()
+                }
+                if (bufferFile != null) {
+                    saveImageToCache(buffer, bufferFile)
                 }
             }
         }
@@ -195,16 +205,19 @@ internal class ImageItemViewHolder(
 
     private fun prepareImageView(imageWidth: Int, imageHeight: Int) {
         Log.d(tag, "prepareImageView: $adapterPosition")
-        val calcImageViewWidth: Int = maxImageWidth -
-                (itemView.gifView.parent as ViewGroup).run {
+        val imageViewWidth: Int = maxImageWidth -
+                (itemView.image_container.parent as ViewGroup).run {
                     paddingLeft + paddingRight
                 } * 2
-        val calcImageViewHeight = calculateViewHeight(calcImageViewWidth, imageWidth, imageHeight)
-        Log.d(tag, "prepareImageView: calcViewHeight = $calcImageViewHeight, imageSize: ${imageWidth}x$imageHeight")
+        val calcImageViewHeight = calculateViewHeight(imageViewWidth, imageWidth, imageHeight)
         itemView.gifView.run {
             clearAnimation()
             layoutParams.height = calcImageViewHeight
-            setColorFilter(previewColor)
+            requestLayout()
+            setImageResource(color.colorImagePreview)
+        }
+        itemView.image_container.run {
+            layoutParams.height = calcImageViewHeight
             requestLayout()
         }
     }

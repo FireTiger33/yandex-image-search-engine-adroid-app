@@ -52,7 +52,7 @@ internal class ImageListAdapter(
                     Log.d(ImageItemViewHolder.tag, "load other images from buffer")
                     showOtherImages(vh)
                 } else {  // Getting real source of origin image and list of images
-                    vh.showProgressBar()
+                    vh.showAdditionalProgressBar()
                     contentProvider.getImageRealSourceSite(vh.item) { realSource, errorMsg ->
                         Log.d(ImageItemViewHolder.tag, "source: ${vh.item.sourceSite} realSource: $realSource")
                         if (realSource != null) {
@@ -61,7 +61,7 @@ internal class ImageListAdapter(
                                 contentProvider.setAddImageList(itemNum, imageLinkList)
                                 showOtherImages(vh)
                                 FileWorker.createFile(keyFile)
-                                vh.hideProgressBar()
+                                vh.hideAdditionalProgressBar()
                             }
                         } else {
                             shortToast(getString(R.string.images_load_failed) + errorMsg)
@@ -112,7 +112,7 @@ internal class ImageListAdapter(
             )
         } else {
             vh.itemView.background = null
-            vh.hideProgressBar()
+            vh.hideAdditionalProgressBar()
             vh.innerRecyclerView.visibility = View.GONE
         }
     }
