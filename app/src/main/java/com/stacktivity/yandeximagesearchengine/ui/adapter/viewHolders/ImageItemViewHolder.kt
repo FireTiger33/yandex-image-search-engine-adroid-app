@@ -1,6 +1,8 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.PorterDuff
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
@@ -11,6 +13,7 @@ import com.stacktivity.yandeximagesearchengine.R.string
 import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
+import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
 import com.stacktivity.yandeximagesearchengine.util.ImageItemLoader
 import com.stacktivity.yandeximagesearchengine.util.getString
 import kotlinx.android.synthetic.main.item_image_list.view.*
@@ -45,6 +48,7 @@ internal class ImageItemViewHolder(
     val itemNum: Int
         get() = item.itemNum
     private var imageObserver: ImageObserver? = null
+    private var previewImageObserver: ImageObserver? = null
 
     fun bind(item: ImageItem, bufferFile: File? = null) {
         this.item = item
@@ -52,11 +56,13 @@ internal class ImageItemViewHolder(
         bindTextViews(item.dups[0])
         showProgressBar()
 
+        previewImageObserver = getPreviewImageObserver()
         imageObserver = getImageObserver()
         ImageItemLoader.getImage(
                 item = item,
                 reqImageWidth = maxImageWidth,
                 minImageWidth = maxImageWidth / 2,
+                previewImageObserver = previewImageObserver,
                 imageObserver = imageObserver!!,
                 cacheFile = bufferFile
         ) { width, height ->
@@ -91,6 +97,7 @@ internal class ImageItemViewHolder(
         return object : ImageObserver() {
             override fun onBitmapResult(bitmap: Bitmap?) {
                 if (bitmap != null) {
+                    previewImageObserver?.requiredToShow = false
                     if (requiredToShow) {
                         applyBitmapToView(bitmap)
                         hideProgressBar()
@@ -102,12 +109,18 @@ internal class ImageItemViewHolder(
             }
 
             override fun onGifResult(drawable: GifDrawable) {
+                previewImageObserver?.requiredToShow = false
                 if (requiredToShow) {
                     applyGifToView(drawable)
                     hideProgressBar()
                 }
             }
         }
+    }
+
+    private fun applyThumbToView(thumb: Bitmap) {
+        itemView.gifView.setImageBitmap(BitmapUtils.blur(thumb))
+        itemView.gifView.setColorFilter(Color.GRAY, PorterDuff.Mode.MULTIPLY)
     }
 
     private fun applyBitmapToView(imageBitmap: Bitmap) {
@@ -119,6 +132,21 @@ internal class ImageItemViewHolder(
     private fun applyGifToView(drawable: GifDrawable) {
         itemView.gifView.setImageDrawable(drawable)
         itemView.gifView.clearColorFilter()
+    }
+
+    private fun getPreviewImageObserver(): ImageObserver {
+        return object : ImageObserver() {
+            override fun onBitmapResult(bitmap: Bitmap?) {
+                Log.d(tag, "preview is downloaded ${item.itemNum}")
+                if (bitmap != null) {
+                    if (requiredToShow) {
+                        applyThumbToView(bitmap)
+                    }
+                } else {
+                    Log.e(tag, "Thumb load failed")
+                }
+            }
+        }
     }
 
     private fun prepareImageView(imageWidth: Int, imageHeight: Int) {

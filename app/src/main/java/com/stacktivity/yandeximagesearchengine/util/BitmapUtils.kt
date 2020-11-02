@@ -2,6 +2,8 @@ package com.stacktivity.yandeximagesearchengine.util
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.util.Log
 import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.createFile
 import kotlinx.coroutines.Dispatchers
@@ -132,6 +134,27 @@ class BitmapUtils {
                 }
             }
             return inSampleSize
+        }
+
+        fun blur(image: Bitmap): Bitmap {
+            val startMs = System.currentTimeMillis()
+            val scaleFactor = 1f
+            val radius = 2f/*20f*/
+            /*if (downScale.isChecked()) {
+                scaleFactor = 8f
+                radius = 2f
+            }*/
+            var overlay = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(overlay)
+            val paint = Paint()
+
+            canvas.scale(1 / scaleFactor, 1 / scaleFactor)
+            paint.flags = Paint.FILTER_BITMAP_FLAG
+            canvas.drawBitmap(image, 0f, 0f, paint)
+            overlay = FastBlur.doBlur(overlay, radius.toInt(), true)
+            Log.d(tag, "Blur ${System.currentTimeMillis() - startMs}ms")
+
+            return overlay
         }
     }
 }

@@ -14,12 +14,30 @@ class ImageItemLoader {
         abstract fun onGifResult(drawable: GifDrawable)
     }
 
+    private class MapperImageObserver {
+        companion object {
+            fun mapFrom(observer: ImageObserver): ImageDownloadHelper.ImageObserver {
+                return object : ImageDownloadHelper.ImageObserver() {
+                    override fun onBitmapResult(bitmap: Bitmap?) {
+                        observer.onBitmapResult(bitmap)
+                    }
+
+                    override fun onGifResult(buffer: ByteBuffer) {
+                        observer.onGifResult(GifDrawable(buffer))
+                    }
+
+                }
+            }
+        }
+    }
+
     companion object {
         val tag: String = ImageItemLoader::class.java.simpleName
 
         fun <IObserver : ImageObserver> getImage(
                 item: ImageItem,
                 reqImageWidth: Int, minImageWidth: Int,
+                previewImageObserver: IObserver? = null,
                 imageObserver: IObserver,
                 cacheFile: File? = null,
                 onImageSelected: suspend (width: Int, height: Int) -> Unit,
@@ -42,6 +60,7 @@ class ImageItemLoader {
                             item.dups.slice(imageNum + 1 until item.dups.size)
                     ).map { x -> x.url }
 
+            previewImageObserver?.let { downloadPreview(item.thumb.url, MapperImageObserver.mapFrom(it)) }
             downloadImage(imageUrls, reqImageWidth, cachingObserver)
         }
 
@@ -106,6 +125,15 @@ class ImageItemLoader {
                     reqWidth = reqImageWidth,
                     minWidth = Constants.MIN_IMAGE_WIDTH, minHeight = Constants.MIN_IMAGE_HEIGHT,
                     timeoutMs = 3000,
+                    imageObserver = imageObserver
+            )
+        }
+
+        private fun downloadPreview(url: String, imageObserver: ImageDownloadHelper.ImageObserver) {
+            ImageDownloadHelper.getInstance().getImageAsync(
+                    poolTag = tag + "_thumb",
+                    url = url,
+                    timeoutMs = 2000,
                     imageObserver = imageObserver
             )
         }
