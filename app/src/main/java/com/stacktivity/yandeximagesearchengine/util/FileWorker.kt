@@ -3,6 +3,7 @@ package com.stacktivity.yandeximagesearchengine.util
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
 
 class FileWorker {
     companion object {
@@ -85,6 +86,13 @@ class FileWorker {
             }
 
             return res
+        }
+
+        fun saveBytesToFile(buffer: ByteBuffer, file: File) {
+            buffer.rewind()
+            val array = ByteArray(buffer.remaining())
+            buffer.get(array, 0, buffer.remaining())
+            saveBytesToFile(array, file)
         }
     }
 }

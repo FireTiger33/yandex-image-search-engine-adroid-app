@@ -22,13 +22,6 @@ internal abstract class BaseImageViewHolder(itemView: View): ViewHolder(itemView
         return calculateViewWidth(viewWidth, imageHeight, imageWidth)
     }
 
-    protected fun saveImageToCache(buffer: ByteBuffer, bufferFile: File) = GlobalScope.launch(Dispatchers.IO) {
-        buffer.rewind()
-        val array = ByteArray(buffer.remaining())
-        buffer.get(array, 0, buffer.remaining())
-        FileWorker.saveBytesToFile(array, bufferFile)
-    }
-
     @ExperimentalUnsignedTypes
     protected fun getGifSize(buffer: ByteBuffer): Pair<Int, Int> {
         val bArray = ByteArray(12)
