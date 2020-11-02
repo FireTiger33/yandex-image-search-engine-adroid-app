@@ -8,10 +8,13 @@ import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
+import com.stacktivity.yandeximagesearchengine.util.FileWorker
 import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
-import kotlinx.android.synthetic.main.item_image_list.view.*
-import kotlinx.android.synthetic.main.simple_item_image_list.view.*
 import kotlinx.android.synthetic.main.simple_item_image_list.view.gifView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import pl.droidsonroids.gif.GifDrawable
 import java.io.File
 import java.nio.ByteBuffer
@@ -21,7 +24,7 @@ internal class SimpleImageViewHolder(
         itemView: View,
         private val eventListener: EventListener
 ) : BaseImageViewHolder(itemView) {
-    val tag = SimpleImageViewHolder::class.java.simpleName
+    val tag: String = SimpleImageViewHolder::class.java.simpleName
     private val viewHeight = itemView.gifView.layoutParams.height
     private var imageObserver: ImageObserver? = null
 
@@ -95,7 +98,7 @@ internal class SimpleImageViewHolder(
     }
 
     private fun applyGifToView(cacheFile: File) {
-        val gifSize = getImageSize(cacheFile)
+        val gifSize = BitmapUtils.getImageSize(cacheFile)
         prepareImageView(gifSize.first, gifSize.second)
         itemView.gifView.apply {
             setImageDrawable(GifDrawable(cacheFile))
@@ -143,10 +146,11 @@ internal class SimpleImageViewHolder(
                 } else if (requiredToShow) {
                     applyGifToView(buffer)
                     if (bufferFile != null) {
-                        saveImageToCache(buffer, bufferFile)
+                        GlobalScope.launch {
+                            FileWorker.saveBytesToFile(buffer, bufferFile)
+                        }
                     }
                 }
-
             }
         }
     }

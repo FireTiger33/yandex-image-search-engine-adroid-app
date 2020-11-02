@@ -6,9 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.Log
 import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.createFile
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -24,23 +22,34 @@ class BitmapUtils {
          *
          * If the file has an unknown mimetype (non-image), it returns false.
          */
-        fun fileIsAnImage(filePath: String): Boolean {
+        suspend fun fileIsAnImage(filePath: String): Boolean = withContext(Dispatchers.IO) {
             val options = BitmapFactory.Options()
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(filePath, options)
 
-            return options.outMimeType != null
+            return@withContext options.outMimeType != null
         }
 
         /**
          * Checks whether file is a gif image
          */
-        fun fileIsAnGifImage(filePath: String): Boolean {
+        suspend fun fileIsAnGifImage(filePath: String): Boolean = withContext(Dispatchers.IO) {
             val options = BitmapFactory.Options()
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(filePath, options)
 
-            return options.outMimeType == "image/gif"
+            return@withContext options.outMimeType == "image/gif"
+        }
+
+        fun getImageSize(file: File): Pair<Int, Int> {
+            val options = BitmapFactory.Options()
+            options.inJustDecodeBounds = true
+            BitmapFactory.decodeFile(file.path, options)
+            if (options.outMimeType != null) {  // file is image
+                return Pair(options.outWidth, options.outHeight)
+            } else {
+                throw IllegalArgumentException("File is not an image")
+            }
         }
 
         /**
@@ -83,7 +92,7 @@ class BitmapUtils {
          * without loss of quality
          */
         fun saveBitmapToFile(bitmap: Bitmap, destFile: File) =
-                GlobalScope.launch(Dispatchers.IO) {
+                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch(Dispatchers.IO) {
                     val bos = ByteArrayOutputStream()
                     bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
 
@@ -94,8 +103,8 @@ class BitmapUtils {
                     }
 
                     try {
-                        with(FileOutputStream(destFile)) {
-                            this.write(bos.toByteArray())
+                        FileOutputStream(destFile).use {
+                            it.write(bos.toByteArray())
                         }
                     } catch (e: IOException) {
                         // TODO delete cache
@@ -103,16 +112,16 @@ class BitmapUtils {
                     }
                 }
 
-        fun getBitmapFromFile(imageFile: File): Bitmap? {
-            Log.i(tag, "get bitmap from: ${imageFile.path}")
+        fun getBitmapFromFile(imageFile: File, onResult: suspend (Bitmap?) -> Unit)
+                = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             var res: Bitmap? = null
             try {
                 res = BitmapFactory.decodeFile(imageFile.path, null)
             } catch (e: OutOfMemoryError) {
                 Log.e(tag, "OutOfMemory on get bitmap from file")
+            } finally {
+                onResult(res)
             }
-
-            return res
         }
 
         private fun calculateInSampleSize(
