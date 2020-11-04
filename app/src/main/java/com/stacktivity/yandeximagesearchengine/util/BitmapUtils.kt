@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
 
 class BitmapUtils {
 
@@ -41,12 +42,22 @@ class BitmapUtils {
             return@withContext options.outMimeType == "image/gif"
         }
 
-        fun getImageSize(file: File): Pair<Int, Int> {
+        fun getGifSize(buffer: ByteBuffer): Pair<Int, Int> {
+            val bArray = ByteArray(12)
+            buffer.get(bArray, 0, 11)
+            buffer.rewind()
+            val width = bArray[6].toUByte() + (bArray[7].toUInt() shl 8)
+            val height = bArray[8].toUByte() + (bArray[9].toUInt() shl 8)
+
+            return Pair(width.toInt(), height.toInt())
+        }
+
+        suspend fun getImageSize(file: File): Pair<Int, Int> = withContext(Dispatchers.IO) {
             val options = BitmapFactory.Options()
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(file.path, options)
             if (options.outMimeType != null) {  // file is image
-                return Pair(options.outWidth, options.outHeight)
+                Pair(options.outWidth, options.outHeight)
             } else {
                 throw IllegalArgumentException("File is not an image")
             }
@@ -55,20 +66,26 @@ class BitmapUtils {
         /**
          * Simplifies Bitmap to desired resolution
          */
-        fun getSimplifiedBitmap(imagePath: String, reqWidth: Int = -1, reqHeight: Int = -1): Bitmap? {
+        fun getSimplifiedBitmap(
+            imagePath: String,
+            reqWidth: Int = -1, reqHeight: Int = -1,
+            onResult: suspend (Bitmap?) -> Unit
+        ) = CoroutineScope(SupervisorJob()).launch(Dispatchers.IO) {
             val validReqWidth: Int
             val validReqHeight: Int
             val cropFactor: Float
             val options = BitmapFactory.Options()
 
             if (reqWidth < 1 && reqHeight < 1) {
-                return null
+                onResult(null)
+                return@launch
             }
 
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(imagePath, options)
             if (options.outMimeType == null) {
-                return null
+                onResult(null)
+                return@launch
             }
 
             if (reqHeight < 0) {
@@ -84,33 +101,40 @@ class BitmapUtils {
             options.inSampleSize = calculateInSampleSize(options, validReqWidth, validReqHeight)
             options.inJustDecodeBounds = false
 
-            return BitmapFactory.decodeFile(imagePath, options)
+            try {
+                onResult(BitmapFactory.decodeFile(imagePath, options))
+            } catch (e: OutOfMemoryError) {
+                onResult(null)
+            }
         }
 
         /**
          * Non-blocking function for saving Bitmap to file
          * without loss of quality
          */
-        fun saveBitmapToFile(bitmap: Bitmap, destFile: File) =
-                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch(Dispatchers.IO) {
-                    val bos = ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
+        fun saveBitmapToFile(
+            bitmap: Bitmap,
+            destFile: File,
+            onException: suspend (IOException) -> Unit
+        ) = CoroutineScope(SupervisorJob()).launch(Dispatchers.IO) {
+                val bos = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
 
-                    if (!destFile.exists()) {
-                        if (!createFile(destFile)) {
-                            return@launch
-                        }
-                    }
-
-                    try {
-                        FileOutputStream(destFile).use {
-                            it.write(bos.toByteArray())
-                        }
-                    } catch (e: IOException) {
-                        // TODO delete cache
-                        Log.e(tag, "saveBitmapToFile: I/O error")
-                    }
+            if (!destFile.exists()) {
+                if (!createFile(destFile)) {
+                    return@launch
                 }
+            }
+
+            try {
+                FileOutputStream(destFile).use {
+                    it.write(bos.toByteArray())
+                }
+            } catch (e: IOException) {
+                onException(e)
+                Log.e(tag, "saveBitmapToFile: I/O error")
+            }
+        }
 
         fun getBitmapFromFile(imageFile: File, onResult: suspend (Bitmap?) -> Unit)
                 = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
@@ -146,7 +170,6 @@ class BitmapUtils {
         }
 
         fun blur(image: Bitmap): Bitmap {
-            val startMs = System.currentTimeMillis()
             val scaleFactor = 1f
             val radius = 2f/*20f*/
             /*if (downScale.isChecked()) {
@@ -161,7 +184,6 @@ class BitmapUtils {
             paint.flags = Paint.FILTER_BITMAP_FLAG
             canvas.drawBitmap(image, 0f, 0f, paint)
             overlay = FastBlur.doBlur(overlay, radius.toInt(), true)
-            Log.d(tag, "Blur ${System.currentTimeMillis() - startMs}ms")
 
             return overlay
         }
