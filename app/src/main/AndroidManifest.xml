@@ -3,6 +3,7 @@
     package="com.stacktivity.yandeximagesearchengine">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application
         android:name=".App"
@@ -11,15 +12,20 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
-        <activity android:name=".ui.main.MainActivity">
+
+        <activity android:name=".ui.main.MainActivity"
+            android:theme="@style/MainTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".ui.SettingsActivity"
+            android:theme="@style/DefaultTheme" />
+        
     </application>
 
 </manifest>

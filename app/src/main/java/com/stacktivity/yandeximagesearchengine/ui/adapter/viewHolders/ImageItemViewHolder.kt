@@ -1,270 +1,167 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
+import android.graphics.Color
+import android.graphics.PorterDuff
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.Observer
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
-import com.stacktivity.yandeximagesearchengine.R.string
 import com.stacktivity.yandeximagesearchengine.R.color
+import com.stacktivity.yandeximagesearchengine.R.string
+import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
-import com.stacktivity.yandeximagesearchengine.ui.adapter.SimpleImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
-import com.stacktivity.yandeximagesearchengine.util.ImageParser
-import com.stacktivity.yandeximagesearchengine.util.FileWorker
-import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
-import com.stacktivity.yandeximagesearchengine.util.getColor
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageItemLoader
 import com.stacktivity.yandeximagesearchengine.util.getString
-import com.stacktivity.yandeximagesearchengine.util.shortToast
+import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import pl.droidsonroids.gif.GifDrawable
 import java.io.File
 
-
-/**
- * @param maxImageWidth - max preferred width resolution of image
- */
-class ImageItemViewHolder(
+internal class ImageItemViewHolder(
     itemView: View,
-    private val eventListener: EventListener,
-    private val maxImageWidth: Int
-) : RecyclerView.ViewHolder(itemView), SimpleImageListAdapter.EventListener {
-
-    private val tag = ImageItemViewHolder::class.java.simpleName
+    private val eventListener: EventListener
+) : BaseImageViewHolder(itemView) {
+    var maxImageWidth: Int = 0
+    val innerRecyclerView: RecyclerView
+        get() = itemView.other_image_list_rv
 
     interface EventListener {
-        fun onImageLoadFailed(item: ImageItem)
-        fun onAdditionalImageClick(imageUrl: String)
+        fun onLoadFailed(itemNum: Int, isVisible: Boolean)
     }
 
-    interface ContentProvider {
-        fun getImageRealSourceSite(
-            possibleSource: String,
-            onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit
-        )
-
-        fun setAddItemList(list: List<String>)
-        fun getAddItemCount(): Int
-        fun getAddItemOnPosition(position: Int): String
-        fun deleteAddItem(item: String): Int
+    private abstract class CustomImageObserver : ImageObserver() {
+        var requiredToShow = true
+        override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {}
+        override fun onException(e: Throwable) {}
     }
 
-    private lateinit var item: ImageItem
-    private lateinit var contentProvider: ContentProvider
-    private var currentPreviewNum: Int = -1
-    private val otherImageListAdapter = SimpleImageListAdapter(
-        this, getColor(color.colorImagePreview)
-    )
-    private var isShownOtherImages = false
-    private val downloadImageTimeout = 3000
-    private var parserJob: Job? = null
-    private var imageDownloadWorkInfoLiveData: LiveData<WorkInfo>? = null
-
-    init {
-        itemView.other_image_list_rv.adapter = otherImageListAdapter
+    companion object {
+        val tag: String = ImageItemViewHolder::class.java.simpleName
     }
 
-    fun bind(
-        item: ImageItem,
-        bufferFile: File,
-        contentProvider: ContentProvider,
-        parentWidth: Int
-    ) {
+    lateinit var item: ImageItem
+        private set
+    val itemNum: Int
+        get() = item.itemNum
+    private var imageObserver: CustomImageObserver? = null
+    private var previewImageObserver: CustomImageObserver? = null
+
+    fun bind(item: ImageItem, bufferFile: File? = null) {
         this.item = item
-        this.contentProvider = contentProvider
-        reset(bufferFile.path)
+        reset()
         bindTextViews(item.dups[0])
+        showProgressBar()
 
-        if (bufferFile.exists()) {
-            val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
-            if (imageBitmap != null) {
-                prepareImageView(parentWidth, imageBitmap.width, imageBitmap.height)
-                applyBitmapToView(imageBitmap)
-
-                return
-            }
-        }
-
-        currentPreviewNum = getMaxAllowSizePreviewNum(maxImageWidth, maxImageWidth / 2)  // TODO get width from settings
-        Log.d(tag, "bind item: $item")
-        val cropFactor = maxImageWidth.toFloat() / item.dups[currentPreviewNum].width
-        val reqWidth = maxImageWidth
-        val reqHeight = (item.dups[currentPreviewNum].height * cropFactor).toInt()
-        prepareImageView(parentWidth, reqWidth, reqHeight)
-
-        downloadBitmap(bufferFile, reqWidth = reqWidth) { imageBitmap ->
-            if (imageBitmap != null) {
-                prepareImageView(parentWidth, imageBitmap.width, imageBitmap.height)
-                applyBitmapToView(imageBitmap)
-            } else {
-                eventListener.onImageLoadFailed(item)
+        previewImageObserver = getPreviewImageObserver()
+        imageObserver = getImageObserver()
+        BufferedImageItemLoader.getImage(
+            item = item,
+            reqImageWidth = maxImageWidth,
+            minImageWidth = maxImageWidth / 2,
+            previewImageObserver = previewImageObserver,
+            imageObserver = imageObserver!!,
+            cacheFile = bufferFile
+        ) { width, height ->
+            withContext(Dispatchers.Main) {
+                prepareImageView(width, height)
             }
         }
     }
 
-    override fun onImagesLoadFailed() {
-        shortToast(string.images_load_failed)
-        resetOtherImagesView()
+    private fun showProgressBar() {
+        itemView.image_load_progress_bar.visibility = View.VISIBLE
     }
 
-    override fun onItemClick(item: String) {
-        eventListener.onAdditionalImageClick(item)
+    private fun hideProgressBar() {
+        itemView.image_load_progress_bar.visibility = View.GONE
     }
 
-    private fun reset(otherImagesBufferFileBase: String) {
-//        imageDownloadWork?.let { WorkManager.getInstance(itemView.context).cancelWorkById(it.id) }
-        imageDownloadWorkInfoLiveData?.removeObservers(itemView.context as LifecycleOwner)
-        resetOtherImagesView()
-        parserJob?.cancel()
-        currentPreviewNum = -1
-        val keyFile = File("${otherImagesBufferFileBase}_list")
+    fun showAdditionalProgressBar() {
+        itemView.progress_bar.visibility = View.VISIBLE
+    }
 
-        itemView.setOnClickListener {
-            if (isShownOtherImages) {
-                resetOtherImagesView()
-            } else {
-                itemView.setBackgroundColor(getColor(color.itemOnClickOutSideColor))
-                isShownOtherImages = true
-                if (keyFile.exists()) {  // Data has already been loaded before, load from cache
-                    Log.d(tag, "load other images from buffer")
+    fun hideAdditionalProgressBar() {
+        itemView.progress_bar.visibility = View.GONE
+    }
 
-                    showOtherImages(otherImagesBufferFileBase)
-                } else {  // Getting real source of origin image and list of images
-                    itemView.progress_bar.visibility = View.VISIBLE
-                    contentProvider.getImageRealSourceSite(item.sourceSite) { realSource, errorMsg ->
-                        Log.d(tag, "parent: $realSource")
-                        if (realSource != null) {
-                            parserJob = GlobalScope.launch(Dispatchers.Main) {
-                                val imageLinkList = ImageParser.getUrlListToImages(realSource)
-                                contentProvider.setAddItemList(imageLinkList)
-                                showOtherImages(otherImagesBufferFileBase)
-                                FileWorker.createFile(keyFile)
-                                Handler(Looper.getMainLooper()).post {
-                                    itemView.progress_bar.visibility = View.GONE
-                                }
-                            }
-                        } else {
-                            shortToast(getString(string.images_load_failed) + errorMsg)
-                            resetOtherImagesView()
-                        }
-                    }
+    private fun reset() {
+        previewImageObserver?.requiredToShow = false
+        imageObserver?.requiredToShow = false
+        itemView.gifView.setImageResource(color.colorImagePreview)
+    }
+
+    private fun getImageObserver(): CustomImageObserver {
+        return object : CustomImageObserver() {
+            override fun onBitmapResult(bitmap: Bitmap) {
+                previewImageObserver?.requiredToShow = false
+                if (requiredToShow) {
+                    applyBitmapToView(bitmap)
+                    hideProgressBar()
                 }
             }
+
+            override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
+                previewImageObserver?.requiredToShow = false
+                if (requiredToShow) {
+                    applyGifToView(drawable, width, height)
+                    hideProgressBar()
+                }
+            }
+
+            override fun onException(e: Throwable) {
+                Log.d(tag, "load failed: $itemNum")
+                eventListener.onLoadFailed(itemNum, requiredToShow)
+            }
         }
     }
 
-    private fun showOtherImages(otherImagesBufferFileBase: String) {
-        if (contentProvider.getAddItemCount() > 0) {
-            otherImageListAdapter.bufferFileBase = otherImagesBufferFileBase
-            itemView.other_image_list_rv.visibility = View.VISIBLE
-        } else {
-            resetOtherImagesView()
-            shortToast(string.other_images_not_found)
-        }
+    private fun applyThumbToView(thumb: Bitmap) {
+        itemView.gifView.setImageBitmap(BitmapUtils.blur(thumb))
+        itemView.gifView.setColorFilter(Color.GRAY, PorterDuff.Mode.MULTIPLY)
     }
 
     private fun applyBitmapToView(imageBitmap: Bitmap) {
-        itemView.image.run {
-            setImageBitmap(imageBitmap)
-            colorFilter = null
-        }
+        prepareImageView(imageBitmap.width, imageBitmap.height)
+        itemView.gifView.setImageBitmap(imageBitmap)
+        itemView.gifView.clearColorFilter()
     }
 
-    private fun resetOtherImagesView() {
-        itemView.background = null
-        itemView.progress_bar.visibility = View.GONE
-        isShownOtherImages = false
-        itemView.other_image_list_rv.visibility = View.GONE
-        otherImageListAdapter.setNewContentProvider(object :
-            SimpleImageListAdapter.ContentProvider {
-            override fun getItemCount(): Int {
-                return contentProvider.getAddItemCount()
-            }
-
-            override fun getItemOnPosition(position: Int): String {
-                return contentProvider.getAddItemOnPosition(position)
-            }
-
-            override fun deleteItem(imageUrl: String): Int {
-                return contentProvider.deleteAddItem(imageUrl)
-            }
-        })
+    private fun applyGifToView(drawable: GifDrawable, gifWidth: Int, gifHeight: Int) {
+        prepareImageView(gifWidth, gifHeight)
+        itemView.gifView.setImageDrawable(drawable)
+        itemView.gifView.clearColorFilter()
     }
 
-    private fun downloadBitmap(
-        bufferFile: File,
-        reqWidth: Int? = null,
-        reqHeight: Int? = null,
-        onAsyncResult: (bitmap: Bitmap?) -> Unit
-    ) {
-        val imageUrls: Array<String> = (
-                item.dups.slice(0..currentPreviewNum).reversed() +
-                        item.dups.slice(currentPreviewNum + 1 until item.dups.size)
-                ).map { x -> x.url }.toTypedArray()
-        val imageDownloadWork = ImageDownloadHelper.getWorkForLoadAndSaveImage(
-            imageUrls,
-            bufferFile,
-            reqWidth,
-            reqHeight,
-            downloadImageTimeout
-        )
-
-        // Start image download
-        WorkManager.getInstance(itemView.context).enqueue(imageDownloadWork)
-
-        imageDownloadWorkInfoLiveData =
-            WorkManager.getInstance(itemView.context).getWorkInfoByIdLiveData(imageDownloadWork.id)
-        imageDownloadWorkInfoLiveData?.observe(itemView.context as LifecycleOwner,
-            Observer<WorkInfo> {
-                Log.d(tag, "Download status: ${it.state}")
-                when (it.state) {
-                    WorkInfo.State.SUCCEEDED -> {
-                        val imageBitmap = BitmapUtils.getBitmapFromFile(bufferFile)
-                        onAsyncResult(imageBitmap)
-                    }
-
-                    WorkInfo.State.FAILED -> {
-                        onAsyncResult(null)
-                    }
-
-                    else -> { }
+    private fun getPreviewImageObserver(): CustomImageObserver {
+        return object : CustomImageObserver() {
+            override fun onBitmapResult(bitmap: Bitmap) {
+                if (requiredToShow) {
+                    applyThumbToView(bitmap)
                 }
             }
-        )
-    }
-
-    private fun getMaxAllowSizePreviewNum(maxImageWidth: Int, minImageWidth: Int): Int {
-        item.dups.forEachIndexed { i, preview ->
-            if (preview.width <= maxImageWidth) {
-                return if (preview.width >= minImageWidth) i else i - 1
-            }
         }
-
-        return item.dups.size - 1
     }
 
-    private fun prepareImageView(parentWidth: Int, imageWidth: Int, imageHeight: Int) {
-        val calcImageViewWidth: Float = parentWidth.toFloat() -
-                (itemView.image.parent as ViewGroup).run {
+    private fun prepareImageView(imageWidth: Int, imageHeight: Int) {
+        val imageViewWidth: Int = maxImageWidth -
+                (itemView.image_container.parent as ViewGroup).run {
                     paddingLeft + paddingRight
                 } * 2
-        itemView.image.run {
-            val cropFactor: Float = calcImageViewWidth / imageWidth
-            val cropHeight: Int = (cropFactor * imageHeight).toInt()
-            layoutParams.height = cropHeight
-            setColorFilter(getColor(color.colorImagePreview))
+        val calcImageViewHeight = calculateViewHeight(imageViewWidth, imageWidth, imageHeight)
+        itemView.gifView.run {
+            clearAnimation()
+            layoutParams.height = calcImageViewHeight
+            requestLayout()
+        }
+        itemView.image_container.run {
+            layoutParams.height = calcImageViewHeight
+            requestLayout()
         }
     }
 
@@ -272,7 +169,8 @@ class ImageItemViewHolder(
         val imageResolutionText = "resolution : ${preview.width}x${preview.height}"
         val imageSizeText = "size: ${preview.fileSizeInBytes / 1024}Kb"
         val linkUrl = "${getString(string.action_open_origin_image)}: ${preview.url}"
-        val linkSourceUrl = "${getString(string.action_open_origin_image_source)}: ${item.sourceSite}"
+        val linkSourceUrl =
+                "${getString(string.action_open_origin_image_source)}: ${item.sourceSite}"
         itemView.run {
             title.text = item.title
             image_resolution.text = imageResolutionText

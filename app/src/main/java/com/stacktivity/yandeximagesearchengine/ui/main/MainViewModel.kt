@@ -2,124 +2,67 @@ package com.stacktivity.yandeximagesearchengine.ui.main
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.stacktivity.yandeximagesearchengine.App
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
+import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.MainRepository
 import com.stacktivity.yandeximagesearchengine.data.YandexRepository
+import com.stacktivity.yandeximagesearchengine.data.model.Blocks
 import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
+import com.stacktivity.yandeximagesearchengine.providers.MainContentProvider
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
-import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
-import com.stacktivity.yandeximagesearchengine.util.Event
 import com.stacktivity.yandeximagesearchengine.util.EventForResult
-import com.stacktivity.yandeximagesearchengine.util.getString
-import com.stacktivity.yandeximagesearchengine.R.string.need_enter_captcha
+import kotlinx.coroutines.*
 import java.io.File
 
-class MainViewModel : ViewModel() {
-    val empty = MutableLiveData<Boolean>().apply { value = true }
-    val dataLoading = MutableLiveData<Boolean>().apply { value = false }
-    val newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
+class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
+    private val _dataLoading = MutableLiveData<Boolean>().apply { value = false }
+    val dataLoading: LiveData<Boolean>
+        get() = _dataLoading
+
+    private val _newQueryIsLoaded = MutableLiveData<Boolean>().apply { value = false }
+    val newQueryIsLoaded: LiveData<Boolean>
+        get() = _newQueryIsLoaded
 
     private val _captchaEvent = MutableLiveData<EventForResult<String, String>>()
     val captchaEvent: LiveData<EventForResult<String, String>>
         get() = _captchaEvent
 
-    private val _onImageClickEvent = MutableLiveData<Event<String>>()
-    val onImageClickEvent: LiveData<Event<String>>
-        get() = _onImageClickEvent
-
     private var numLoadedPages: Int = 0
     private var currentQuery: String = ""
     private var isLastPage = false
 
-    private val imageList: List<ImageItem>
-        get() = MainRepository.getInstance().getImageList()
-    private val imageCount: Int
-        get() = MainRepository.getInstance().getImageCount()
-
-    private val imageBufferFilesDir: File
-        get() {
-            return App.getInstance().filesDir
-        }
+    private val imageBufferFilesDir: File = App.getInstance().cacheDir
 
     private var adapter: ImageListAdapter? = null
 
-    fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter = adapter
-        ?: ImageListAdapter(
-            object : ImageListAdapter.ContentProvider {
-                override fun getItemCount(): Int = imageCount
-                override fun getItemOnPosition(position: Int): ImageItem = imageList[position]
-                override fun getImageRealSourceSite(
-                    possibleSource: String,
-                    onAsyncResult: (realSource: String?, errorMsg: String?) -> Unit
-                ) {
-                    YandexRepository.getInstance().getImageRealSourceSite(
-                        possibleSource,
-                        object : YandexRepository.CaptchaEventListener {
-                            override fun onCaptchaEvent(
-                                captchaImgUrl: String,
-                                isRepeatEvent: Boolean,
-                                onResult: (captchaValue: String) -> Unit
-                            ) = Handler(Looper.getMainLooper()).post {
-                                _captchaEvent.value =
-                                    EventForResult(captchaImgUrl, isRepeatEvent) { result ->
-                                        if (result != null) {
-                                            onResult(result)
-                                        } else {
-                                            onAsyncResult(null, getString(need_enter_captcha))
-                                        }
-                                    }
-                            }
-                        },
-                        onAsyncResult
-                    )
-                }
+    init {
+        YandexRepository.registerCaptchaEventListener(this)
+    }
 
-                override fun setAddImageList(position: Int, list: List<String>) {
-                    MainRepository.getInstance().createAddImageList(position, list)
-                }
-
-                override fun getAddImagesCountOnPosition(position: Int): Int {
-                    return MainRepository.getInstance().getAddImageList(position).size
-                }
-
-                override fun getAddImageListItemOnPosition(position: Int, itemIndex: Int): String {
-                    return MainRepository.getInstance().getAddImageList(position)[itemIndex]
-                }
-
-                override fun deleteItemOtherImageOnPosition(position: Int, imageUrl: String): Int {
-                    return MainRepository.getInstance()
-                        .deleteItemFromAddImageList(position, imageUrl)
-                }
-            },
-            imageBufferFilesDir,
-            object : ImageItemViewHolder.EventListener {
-                override fun onImageLoadFailed(item: ImageItem) {
-                    Log.d("SimpleImageListAdapter", "load failed: $item")
-                    val deletedItemIndex = imageList.indexOf(item)
-                    MainRepository.getInstance().deleteFromImageList(deletedItemIndex)
-                    adapter?.notifyItemRemoved(deletedItemIndex)
-                }
-
-                override fun onAdditionalImageClick(imageUrl: String) {
-                    _onImageClickEvent.value = Event(imageUrl)
-                }
-            },
+    internal fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter {
+        return if (adapter != null) {
+            adapter!!.onChangeScreenConfiguration(maxImageWidth)
+            adapter!!
+        } else ImageListAdapter(
+            MainContentProvider,
+            MainContentProvider,
+            imageBufferFilesDir.path,
             maxImageWidth
         ).also {
             adapter = it
         }
+    }
 
     fun fetchImagesOnQuery(query: String) {
-        empty.value = true
         isLastPage = false
         numLoadedPages = 0
         currentQuery = query
+        NetworkStateReceiver.getInstance().removeAllListeners()
         fetchImagesOnNextPage()
     }
 
@@ -129,64 +72,87 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    override fun onCaptchaEvent(
+        captchaImgUrl: String,
+        isRepeatEvent: Boolean,
+        onResult: (captchaValue: String) -> Unit
+    ) {
+        Handler(Looper.getMainLooper()).post {
+            _captchaEvent.value = EventForResult(captchaImgUrl, isRepeatEvent) { result ->
+                if (result != null) {
+                    onResult(result)
+                } /*else {
+                    onAsyncResult(null, getString(R.string.need_enter_captcha))
+                }*/
+            }
+        }
+    }
+
     private fun fetchImages(query: String, page: Int) {
-        dataLoading.value = true
-        YandexRepository.getInstance().getImageData(
-            query, page,
-            object : YandexRepository.CaptchaEventListener {
-                override fun onCaptchaEvent(
-                    captchaImgUrl: String,
-                    isRepeatEvent: Boolean,
-                    onResult: (captchaValue: String) -> Unit
-                ) = Handler(Looper.getMainLooper()).post {
-                    _captchaEvent.value = EventForResult(captchaImgUrl, isRepeatEvent) { result ->
-                        if (result != null) {
-                            onResult(result)
+        // start loading
+        _dataLoading.value = true
+        YandexRepository.getInstance()
+            .getImageData(query, page) { isSuccess, response: YandexResponse? ->
+                // loading complete
+                if (isSuccess) {
+                    response?.blocks?.let {
+                        val isNewQuery = page == 0
+                        onFetchComplete(it[0], isNewQuery) {
+                            _dataLoading.value = false
+                            _newQueryIsLoaded.value = isNewQuery
                         }
-                    }
-                }
-            }) { isSuccess, response: YandexResponse? ->
-            dataLoading.value = false
-            if (isSuccess) {
-                empty.value = false
-                if (response?.blocks != null) {
-                    val html = response.blocks[0].html
-                    val itemList = YandexImageUtil.getImageItemListFromHtml(html)
-                    newQueryIsLoaded.value = numLoadedPages < 1
-                    numLoadedPages++
-                    if (numLoadedPages == response.blocks[0].params.lastPage) {
+                    } ?: kotlin.run {
                         isLastPage = true
                     }
-                    applyData(itemList)
-                } else {
-                    isLastPage = true
                 }
+            }
+    }
+
+    private fun onFetchComplete(imageBlock: Blocks, isNewQuery: Boolean, onSuccess: () -> Unit) {
+        val html = imageBlock.html
+        numLoadedPages++
+        GlobalScope.launch(Dispatchers.Default) {
+            val itemList = YandexImageUtil.getImageItemListFromHtml(
+                html = html,
+                startIndexingItemsFromScratch = isNewQuery
+            )
+            if (numLoadedPages == imageBlock.params.lastPage) {
+                isLastPage = true
+            }
+            applyData(itemList, isNewQuery)
+            withContext(Dispatchers.Main) {
+                onSuccess()
             }
         }
     }
 
     /**
-     * Change itemList in repository and and notifies the adapter of changes made
+     * Change itemList in repository and notifies the adapter of changes made
      */
-    private fun applyData(itemList: List<ImageItem>) {
-        if (newQueryIsLoaded.value != false) {
-            clearCache()
-            adapter!!.notifyDataSetChanged()
+    private fun applyData(itemList: List<ImageItem>, isNewQuery: Boolean) = runBlocking {
+        if (isNewQuery) {
+            val clearCacheJob = async(Dispatchers.IO) { clearCache() }
+            MainRepository.getInstance().clearAllData()
+            MainRepository.getInstance().addToImageList(itemList)
+            clearCacheJob.await()
+            withContext(Dispatchers.Main) { adapter!!.onReloadData() }
+        } else {
+            val itemCount = MainContentProvider.getItemCount()
+            MainRepository.getInstance().addToImageList(itemList)
+            withContext(Dispatchers.Main) {
+                adapter!!.notifyItemRangeInserted(itemCount, MainContentProvider.getItemCount() - 1)
+            }
         }
-        val lastImageCount = imageCount
-        MainRepository.getInstance().addToImageList(itemList)
-        adapter!!.notifyItemRangeInserted(lastImageCount, imageCount - 1)
     }
 
     private fun clearCache() {
         imageBufferFilesDir.listFiles()?.forEach { file ->
             file.delete()
         }
-        MainRepository.getInstance().clearAllData()
     }
 
     companion object {
-        val tag = MainViewModel::class.java.simpleName
+        val tag: String = MainViewModel::class.java.simpleName
 
         private var INSTANCE: MainViewModel? = null
         fun getInstance() = INSTANCE

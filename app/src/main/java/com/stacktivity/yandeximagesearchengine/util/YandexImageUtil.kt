@@ -4,11 +4,14 @@ import com.google.gson.Gson
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
+import com.stacktivity.yandeximagesearchengine.data.model.Thumb
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
 
 class YandexImageUtil {
 
     companion object {
+        private var lastItemIndex = 0
+
         /**
          * Retrieves raw data and prepares it by filtering
          * duplicates and images that are too small
@@ -17,10 +20,15 @@ class YandexImageUtil {
          *
          * @return list of ImageItem with prepared data for future use
          */
-        fun getImageItemListFromHtml(html: String): List<ImageItem> {
+        fun getImageItemListFromHtml(
+                html: String,
+                startIndexingItemsFromScratch: Boolean = false
+        ): List<ImageItem> {
             val imageList: ArrayList<ImageItem> = arrayListOf()
             var imageItem: ImageItem
-            getSerpListFromHtml(html).forEach { item ->
+            if (startIndexingItemsFromScratch) lastItemIndex = 0
+
+            getSerpListFromHtml(html).forEachIndexed { itemNum, item ->
                 val allImages: ArrayList<ImageData> = ArrayList()
                 val allPreview = (item.preview + item.dups)
                     .distinctBy { it.origin?.url?: it.url }
@@ -45,15 +53,22 @@ class YandexImageUtil {
                     }
                 }
 
-                imageItem =
-                    ImageItem(
-                        item.snippet.title,
-                        item.snippet.url,
-                        allImages.sortedByDescending { it.width }
-                    )
+                if (allImages.isNotEmpty()) {
+                    val thumb = Thumb("https:" + item.thumb.url, item.thumb.size)
+                    imageItem =
+                        ImageItem(
+                            itemNum + lastItemIndex,
+                            item.snippet.title,
+                            item.snippet.url,
+                            allImages.sortedByDescending { it.width },
+                            thumb
+                        )
 
-                imageList.add(imageItem)
+                    imageList.add(imageItem)
+                }
             }
+
+            lastItemIndex += imageList.size
 
             return imageList
         }

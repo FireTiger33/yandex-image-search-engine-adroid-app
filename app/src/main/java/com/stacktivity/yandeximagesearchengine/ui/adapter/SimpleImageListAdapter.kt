@@ -8,17 +8,18 @@ import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.SimpleImageViewHolder
 import java.io.File
 
-class SimpleImageListAdapter(
-    private val eventListener: EventListener,
-    private val defaultColor: Int
-) : RecyclerView.Adapter<SimpleImageViewHolder>(), SimpleImageViewHolder.EventListener {
+internal class SimpleImageListAdapter
+    : RecyclerView.Adapter<SimpleImageViewHolder>(), SimpleImageViewHolder.EventListener
+{
+
+    lateinit var eventListener: EventListener
 
     interface EventListener {
         fun onImagesLoadFailed()
         fun onItemClick(item: String)
     }
 
-    var bufferFileBase: String? = null
+    var cacheDir: String? = null
     private var contentProvider: ContentProvider? = null
 
 
@@ -32,7 +33,7 @@ class SimpleImageListAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SimpleImageViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         val view = inflater.inflate(R.layout.simple_item_image_list, parent, false)
-        return SimpleImageViewHolder(view, this, defaultColor)
+        return SimpleImageViewHolder(view, this)
     }
 
     override fun getItemCount(): Int {
@@ -44,11 +45,12 @@ class SimpleImageListAdapter(
     }
 
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
-        val bufferFile: File? = if (bufferFileBase != null) {
-            File("${bufferFileBase}_$position")
+        val item = contentProvider!!.getItemOnPosition(position)
+
+        val bufferFile: File? = if (cacheDir != null) {
+            File("${cacheDir}${item.hashCode()}")
         } else null
 
-        val item = contentProvider!!.getItemOnPosition(position)
         holder.bind(item, bufferFile)
         holder.itemView.setOnClickListener {
             eventListener.onItemClick(item)
@@ -56,12 +58,12 @@ class SimpleImageListAdapter(
     }
 
     override fun onImageLoadFailed(imageUrl: String) {
-        Log.d("SimpleImageListAdapter", "load failed: $imageUrl")
+        Log.i("SimpleImageListAdapter", "load failed: $imageUrl")
         deleteImageFromList(imageUrl)
     }
 
     override fun onSmallImage(imageUrl: String) {
-        Log.d("SimpleImageListAdapter", "image is too small: $imageUrl")
+        Log.i("SimpleImageListAdapter", "image is too small: $imageUrl")
         deleteImageFromList(imageUrl)
     }
 

@@ -33,12 +33,13 @@ class CaptchaDialog(
     }
 
     private fun applyCaptchaImage(imageUrl: String) {
-        GlobalScope.launch(Dispatchers.Main) {
-            val bitmap = ImageDownloadHelper.getBitmapAsync(imageUrl)!!
-            val cropFactor = image_captcha.width.toFloat() / bitmap.width
-            val reqHeight = (cropFactor * bitmap.height).toInt()
-            image_captcha.layoutParams.height = reqHeight
-            image_captcha.setImageBitmap(bitmap)
+        ImageDownloadHelper.getInstance().getBitmapAsync("captcha", imageUrl) { bitmap ->
+            image_captcha?.let {
+                val cropFactor = it.width.toFloat() / bitmap!!.width
+                val reqHeight = (cropFactor * bitmap.height).toInt()
+                it.layoutParams.height = reqHeight
+                it.setImageBitmap(bitmap)
+            }
         }
     }
 

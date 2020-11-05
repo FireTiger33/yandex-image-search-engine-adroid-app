@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorAccent">#01618D</color>
+
+    <color name="backgroundColor">#19191A</color>
+    <color name="itemOnClickOutSideColor">#363738</color>
+    <color name="colorImagePreview">#8c8c8c</color>
+
+    <color name="simple_image_list_background">#2c2d2e</color>
+
+
+    <!-- Text colors -->
+    <color name="color_error_msg_enter_captcha">#871e1e</color>
+</resources>

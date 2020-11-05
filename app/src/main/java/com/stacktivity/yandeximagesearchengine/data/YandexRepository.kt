@@ -10,6 +10,7 @@ import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.lang.IllegalStateException
 import java.lang.RuntimeException
 
 class YandexRepository {
@@ -19,7 +20,18 @@ class YandexRepository {
             captchaImgUrl: String,
             isRepeatEvent: Boolean,
             onResult: (captchaValue: String) -> Unit
-        ): Any?
+        )
+    }
+
+    fun getImageData(
+        query: String, page: Int,
+        onResult: (isSuccess: Boolean, response: YandexResponse?) -> Unit
+    ) {
+        getImageData(
+            query, page,
+            captchaEventListener?: throw captchaEventListenerException,
+            onResult
+        )
     }
 
     fun getImageData(
@@ -34,13 +46,13 @@ class YandexRepository {
                     call: Call<YandexResponse>?,
                     response: Response<YandexResponse>?
                 ) {
-                    val body = response?.body()
-                    if (body != null && response.isSuccessful) {
+                    response?.body()?.let { body ->
                         val captcha = body.captcha
+
                         if (captcha != null) {
                             currentCaptchaOnResultCallback = { captchaValue ->
-                                captcha.sendCaptcha(captchaValue) { isSuccess, responseBody ->
-                                    if (!isSuccess) {
+                                captcha.sendCaptcha(captchaValue) { responseBody ->
+                                    if (responseBody == null) {
                                         eventListener.onCaptchaEvent(captcha.img_url, true, currentCaptchaOnResultCallback)
                                     } else {
                                         val newResponse = Gson().fromJson(responseBody, YandexResponse::class.java)
@@ -52,11 +64,13 @@ class YandexRepository {
                         } else {
                             onResult(true, response.body())
                         }
-                    } else
+                    }?: run {
                         onResult(false, null)
+                    }
                 }
 
                 override fun onFailure(call: Call<YandexResponse>?, t: Throwable?) {
+                    // TODO create networkListener and enqueue when Internet access is available
                     onResult(false, null)
                 }
             })
@@ -70,7 +84,6 @@ class YandexRepository {
      */
     fun getImageRealSourceSite(
         possibleSource: String,
-        eventListener: CaptchaEventListener,
         onResult: (realSource: String?, errorMsg: String?) -> Unit
     ) {
         val yandexCollectionsRegex = Regex("yandex.+?/collections")
@@ -78,7 +91,7 @@ class YandexRepository {
         if (yandexCollectionsRegex.containsMatchIn(possibleSource)) {
             getImageSourceSiteFromCard(
                 possibleSource,
-                eventListener
+                captchaEventListener?: throw captchaEventListenerException
             ) { realSource, errorMsg ->
                 onResult(realSource, errorMsg)
             }
@@ -102,22 +115,27 @@ class YandexRepository {
         eventListener: CaptchaEventListener,
         onResult: (realSource: String?, errorMsg: String?) -> Unit
     ) {
-        Log.d(tag, "url: $url")
+        Log.d(tag, "card-url: $url")
         YandexImagesApi.instance.getHtml(url).enqueue(object : Callback<ResponseBody> {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 val responseString = response.body()?.string()
+                print("responseString = $responseString, success = ${response.isSuccessful}")
                 if (responseString != null && response.isSuccessful) {
-                    getImageSourceSiteFromHtml(responseString)?.let {onResult(it, null)} ?: run {
+                    getImageSourceSiteFromHtml(responseString)?.let { print("SourceSite = null"); onResult(it, null)} ?: run {
                         try {
                             val captcha = Gson().fromJson(responseString, YandexResponse::class.java).captcha
 
                             if (captcha != null) {
                                 currentCaptchaOnResultCallback = { captchaValue ->
-                                    captcha.sendCaptcha(captchaValue) { isSuccess, responseBody ->
-                                        if (isSuccess) {
+                                    captcha.sendCaptcha(captchaValue) { responseBody ->
+                                        if (responseBody != null) {
                                             onResult(getImageSourceSiteFromHtml(responseBody), null)
                                         } else {
-                                            eventListener.onCaptchaEvent(captcha.img_url, true, currentCaptchaOnResultCallback)
+                                            eventListener.onCaptchaEvent(
+                                                captchaImgUrl = captcha.img_url,
+                                                isRepeatEvent = true,
+                                                onResult = currentCaptchaOnResultCallback
+                                            )
                                         }
                                     }
                                 }
@@ -149,8 +167,13 @@ class YandexRepository {
 
     companion object {
         val tag = YandexRepository::class.java.simpleName
-
+        private var captchaEventListener: CaptchaEventListener? = null
+        private val captchaEventListenerException =
+            IllegalStateException("Captcha event listener is not registered")
         private var INSTANCE: YandexRepository? = null
+        fun registerCaptchaEventListener(captchaEventListener: CaptchaEventListener) {
+            this.captchaEventListener = captchaEventListener
+        }
         fun getInstance() = INSTANCE
             ?: YandexRepository().also {
                 INSTANCE = it

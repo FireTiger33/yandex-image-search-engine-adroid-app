@@ -5,7 +5,7 @@ data class SerpItem(
 //    val freshness: String,
     val preview: ArrayList<Preview>,
     val dups: List<Preview>,
-//    val thumb: Thumb,
+    val thumb: Thumb,
     val snippet: Snippet
 )
 
@@ -24,7 +24,7 @@ data class Origin(
     val url: String
 )
 
-/*data class Thumb(
+data class Thumb(
     val url: String,
     val size: Size
 )
@@ -32,7 +32,7 @@ data class Origin(
 data class Size(
     val width: Int,
     val height: Int
-)*/
+)
 
 data class Snippet(
     val title: String,
