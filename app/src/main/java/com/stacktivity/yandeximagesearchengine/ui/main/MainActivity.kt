@@ -1,8 +1,6 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
-import android.content.Intent
 import android.graphics.Point
-import android.net.Uri
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -80,15 +78,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
             }
         })
 
-        viewModel.onImageClickEvent.observe(this, {
-            it.getContentIfNotHandled()?.let { imageUrl ->
-                startActivity(
-                    Intent(Intent.ACTION_VIEW)
-                        .setData(Uri.parse(imageUrl))
-                )
-            }
-        })
-
         viewModel.captchaEvent.observe(this, {
             it.getContentIfNotHandled()?.let { imageUrl ->
                 val dialog = CaptchaDialog(
@@ -154,7 +143,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when(item.itemId) {
+        return when (item.itemId) {
             R.id.settings -> {
                 SettingsActivity.start(this)
                 true
