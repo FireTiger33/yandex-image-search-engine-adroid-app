@@ -1,13 +1,15 @@
-package com.stacktivity.yandeximagesearchengine.util
+package com.stacktivity.yandeximagesearchengine.util.image
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import com.stacktivity.yandeximagesearchengine.util.ByteArrayDownloader
+import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 import java.nio.ByteBuffer
 
 class ImageDownloadHelper private constructor() {
 
     companion object {
-        val tag = ImageDownloadHelper::class.java.simpleName
+        val tag: String = ImageDownloadHelper::class.java.simpleName
         var maxQueueCount: Int = 3  // number of images loading simultaneously
 
         private var INSTANCE: ImageDownloadHelper? = null
@@ -24,11 +26,11 @@ class ImageDownloadHelper private constructor() {
 
     fun getOneOfImage(
         poolTag: String,
-        urls: Array<String>,
+        urls: List<String>,
+        imageObserver: ImageObserver,
         reqWidth: Int? = null, reqHeight: Int? = null,
         minWidth: Int? = null, minHeight: Int? = null,
-        timeoutMs: Long? = null,
-        imageObserver: ImageObserver
+        timeoutMs: Long? = null
     ) {
         val listener = object : Runnable {
             private var i = 0
