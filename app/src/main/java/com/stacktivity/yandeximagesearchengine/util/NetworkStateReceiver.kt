@@ -8,15 +8,18 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
-import android.util.Log
 import java.lang.IllegalStateException
 import java.lang.NullPointerException
+import java.util.Queue
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.collections.HashMap
 
 class NetworkStateReceiver private constructor(context: Context) : BroadcastReceiver() {
 
     private var cm: ConnectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    private val networkListeners: ConcurrentHashMap<String, MutableSet<NetworkListener>> = ConcurrentHashMap()
+    private val networkListeners: ConcurrentHashMap<String, Queue<NetworkListener>> = ConcurrentHashMap()
+    private val runningNetworkListeners: ConcurrentHashMap<String, Queue<NetworkListener>> = ConcurrentHashMap()
     private val networkListenersConf: HashMap<String, Int> = hashMapOf()
 
     abstract class NetworkListener {
@@ -27,21 +30,17 @@ class NetworkStateReceiver private constructor(context: Context) : BroadcastRece
         abstract fun onCancel()
     }
 
-    private interface Listener {
-        fun onSuccess(tag: String)
-    }
-
     companion object {
-        val tag = NetworkStateReceiver::class.java.simpleName
+        val tag: String = NetworkStateReceiver::class.java.simpleName
         private var INSTANCE: NetworkStateReceiver? = null
 
         fun register(context: Context) = INSTANCE
-            ?: NetworkStateReceiver(context).also {
-                INSTANCE = it
-            }
+                ?: NetworkStateReceiver(context).also {
+                    INSTANCE = it
+                }
 
         fun getInstance(): NetworkStateReceiver {
-            return INSTANCE?: throw NullPointerException("Receiver is not registered")
+            return INSTANCE ?: throw NullPointerException("Receiver is not registered")
         }
 
         fun networkIsConnected(networkStateReceiver: NetworkStateReceiver): Boolean {
@@ -64,7 +63,8 @@ class NetworkStateReceiver private constructor(context: Context) : BroadcastRece
      * @param maxQueue - max count listeners in a pool
      */
     fun addNewPoolListeners(tag: String, maxQueue: Int) {
-        networkListeners[tag] = LinkedHashSet()
+        networkListeners[tag] = ConcurrentLinkedQueue()
+        runningNetworkListeners[tag] = ConcurrentLinkedQueue()
         networkListenersConf[tag] = maxQueue
     }
 
@@ -77,35 +77,39 @@ class NetworkStateReceiver private constructor(context: Context) : BroadcastRece
     }
 
     fun addListener(tag: String, listener: NetworkListener) {
-        if (networkListeners.containsKey(tag)) {
+        networkListeners[tag]?.let {
             listener.poolTag = tag
-            /*networkListeners[tag]!!.let {
-                if (networkListenersConf[tag] != 0 && networkListenersConf[tag] == it.size) {
-                    it.remove(it.elementAt(1))
-                }
+            /*if (networkListenersConf[tag] != 0 && networkListenersConf[tag] == it.size) {
+                it.remove(it.elementAt(1))
             }*/
 
-            networkListeners[tag]!!.add(listener)
+            it.add(listener)
 
-            if (networkListeners[tag]!!.size <= networkListenersConf[tag]!!) {
-                newListener().onSuccess(tag)
+            if (it.size <= networkListenersConf[tag]!!) {
+                startNextListener(tag)
             }
-        } else {
-            throw IllegalArgumentException("Pool $tag does not exist")
-        }
+        } ?: run { throw IllegalArgumentException("Pool $tag does not exist") }
     }
 
     fun removeListener(tag: String, listener: NetworkListener) {
         if (networkListeners.containsKey(tag)) {
-            listener.onCancel()
-            networkListeners[tag]!!.remove(listener)
+            if (listener.isRunning) {
+                listener.onCancel()
+                runningNetworkListeners[tag]!!.remove(listener)
+            } else {
+                networkListeners[tag]!!.remove(listener)
+            }
         } else {
             throw IllegalStateException("Pool $tag does not exist")
         }
     }
 
+    /**
+     * Shuts down and clear queue of listeners with specified tag
+     */
     fun removeListenersPool(tag: String) {
-        networkListeners[tag]?.let {
+        networkListeners[tag]?.clear()
+        runningNetworkListeners[tag]?.let {
             it.forEach { listener ->
                 listener.onCancel()
             }
@@ -113,6 +117,9 @@ class NetworkStateReceiver private constructor(context: Context) : BroadcastRece
         }
     }
 
+    /**
+     * Shuts down and clears queues of all connected listeners
+     */
     fun removeAllListeners() {
         networkListeners.forEach { pool ->
             removeListenersPool(pool.key)
@@ -121,21 +128,23 @@ class NetworkStateReceiver private constructor(context: Context) : BroadcastRece
 
     fun getListenersCountByTag(tag: String): Int? = networkListeners[tag]?.size
 
-    override fun onReceive(
-        context: Context,
-        intent: Intent
-    ) {
+    override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ConnectivityManager.CONNECTIVITY_ACTION) {
-            Log.d("NetworkStateReceiver", "call listeners, count: ${networkListeners.size}")
             val poolTags = networkListeners.keys
 
             if (networkIsConnected(this)) {
                 poolTags.forEach { tag ->
-                    newListener().onSuccess(tag)
+                    // start work
+                    runningNetworkListeners[tag]?.forEach {
+                        it.onNetworkIsConnected {
+                            onListenerWorkComplete(it)
+                        }
+                    }
+                    startNextListener(tag)
                 }
             } else {
                 poolTags.forEach { tag ->
-                    networkListeners[tag]?.forEach { listener ->
+                    runningNetworkListeners[tag]?.forEach { listener ->
                         listener.onNetworkIsDisconnected()
                     }
                 }
@@ -143,26 +152,22 @@ class NetworkStateReceiver private constructor(context: Context) : BroadcastRece
         }
     }
 
-    private fun newListener(): Listener {
-        return object : Listener {
-            override fun onSuccess(tag: String) {
-                if (networkListeners[tag]?.isEmpty() != false) {
-                    return
-                }
-
-                networkListeners[tag]!!.last().let {
-                    if (!it.isRunning) {
-                        it.isRunning = true
-                        it.onNetworkIsConnected {
-                            // on success work
-                            removeListener(tag, it)
-                            if (networkListeners[tag]!!.size > 0) {
-                                onSuccess(tag)
-                            }
-                        }
-                    }
-                }
+    private fun startNextListener(poolTag: String) {
+        networkListeners[poolTag]?.remove()?.let {
+            it.isRunning = true
+            runningNetworkListeners[poolTag]?.add(it)
+            it.onNetworkIsConnected {
+                // on success work
+                onListenerWorkComplete(it)
             }
+        }
+    }
+
+    private fun onListenerWorkComplete(listener: NetworkListener) {
+        val listenerPool = listener.poolTag
+        runningNetworkListeners[listenerPool]?.remove(listener)
+        if (networkListeners[listenerPool]!!.size > 0) {
+            startNextListener(listenerPool)
         }
     }
 
