@@ -20,6 +20,8 @@ import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
 import com.stacktivity.yandeximagesearchengine.util.hideKeyboard
 import kotlinx.android.synthetic.main.main_activity.*
 
+const val KEY_QUERY = "query"
+
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
@@ -35,14 +37,18 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     }
 
     private fun initUI(savedInstanceState: Bundle?) {
-        setupSearchView(requestFocus = savedInstanceState == null)
+        val savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
+        setupSearchView(
+            requestFocus = savedInstanceState == null,
+            savedQuery = savedQuery)
         setupImageList()
         setupObservers()
     }
 
-    private fun setupSearchView(requestFocus: Boolean) {
+    private fun setupSearchView(requestFocus: Boolean, savedQuery: String?) {
         searchView = searchToolBar.findViewById(R.id.search)
         searchView.run {
+            setQuery(savedQuery, false)
             setOnQueryTextListener(this@MainActivity)
             isFocusable = true
             isIconified = false
@@ -156,5 +162,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(KEY_QUERY, searchView.query.toString())
+        super.onSaveInstanceState(outState)
     }
 }
