@@ -14,8 +14,9 @@ import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
-import com.stacktivity.yandeximagesearchengine.util.ImageItemLoader
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageItemLoader
 import com.stacktivity.yandeximagesearchengine.util.getString
+import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
 import kotlinx.android.synthetic.main.item_image_list.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,20 +24,21 @@ import pl.droidsonroids.gif.GifDrawable
 import java.io.File
 
 internal class ImageItemViewHolder(
-        itemView: View,
-        private val eventListener: EventListener
+    itemView: View,
+    private val eventListener: EventListener
 ) : BaseImageViewHolder(itemView) {
     var maxImageWidth: Int = 0
     val innerRecyclerView: RecyclerView
         get() = itemView.other_image_list_rv
 
     interface EventListener {
-        fun onLoadFailed(itemNum: Int)
+        fun onLoadFailed(itemNum: Int, isVisible: Boolean)
     }
-    private abstract class ImageObserver : ImageItemLoader.ImageObserver() {
+
+    private abstract class CustomImageObserver : ImageObserver() {
         var requiredToShow = true
-        override fun onBitmapResult(bitmap: Bitmap?) {}
-        override fun onGifResult(drawable: GifDrawable) {}
+        override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {}
+        override fun onException(e: Throwable) {}
     }
 
     companion object {
@@ -47,8 +49,8 @@ internal class ImageItemViewHolder(
         private set
     val itemNum: Int
         get() = item.itemNum
-    private var imageObserver: ImageObserver? = null
-    private var previewImageObserver: ImageObserver? = null
+    private var imageObserver: CustomImageObserver? = null
+    private var previewImageObserver: CustomImageObserver? = null
 
     fun bind(item: ImageItem, bufferFile: File? = null) {
         this.item = item
@@ -58,13 +60,13 @@ internal class ImageItemViewHolder(
 
         previewImageObserver = getPreviewImageObserver()
         imageObserver = getImageObserver()
-        ImageItemLoader.getImage(
-                item = item,
-                reqImageWidth = maxImageWidth,
-                minImageWidth = maxImageWidth / 2,
-                previewImageObserver = previewImageObserver,
-                imageObserver = imageObserver!!,
-                cacheFile = bufferFile
+        BufferedImageItemLoader.getImage(
+            item = item,
+            reqImageWidth = maxImageWidth,
+            minImageWidth = maxImageWidth / 2,
+            previewImageObserver = previewImageObserver,
+            imageObserver = imageObserver!!,
+            cacheFile = bufferFile
         ) { width, height ->
             withContext(Dispatchers.Main) {
                 prepareImageView(width, height)
@@ -89,31 +91,32 @@ internal class ImageItemViewHolder(
     }
 
     private fun reset() {
+        previewImageObserver?.requiredToShow = false
         imageObserver?.requiredToShow = false
         itemView.gifView.setImageResource(color.colorImagePreview)
     }
 
-    private fun getImageObserver(): ImageObserver {
-        return object : ImageObserver() {
-            override fun onBitmapResult(bitmap: Bitmap?) {
-                if (bitmap != null) {
-                    previewImageObserver?.requiredToShow = false
-                    if (requiredToShow) {
-                        applyBitmapToView(bitmap)
-                        hideProgressBar()
-                    }
-                } else {
-                    Log.d(tag, "load failed: $itemNum")
-                    eventListener.onLoadFailed(itemNum)
+    private fun getImageObserver(): CustomImageObserver {
+        return object : CustomImageObserver() {
+            override fun onBitmapResult(bitmap: Bitmap) {
+                previewImageObserver?.requiredToShow = false
+                if (requiredToShow) {
+                    applyBitmapToView(bitmap)
+                    hideProgressBar()
                 }
             }
 
-            override fun onGifResult(drawable: GifDrawable) {
+            override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
                 previewImageObserver?.requiredToShow = false
                 if (requiredToShow) {
-                    applyGifToView(drawable)
+                    applyGifToView(drawable, width, height)
                     hideProgressBar()
                 }
+            }
+
+            override fun onException(e: Throwable) {
+                Log.d(tag, "load failed: $itemNum")
+                eventListener.onLoadFailed(itemNum, requiredToShow)
             }
         }
     }
@@ -129,21 +132,17 @@ internal class ImageItemViewHolder(
         itemView.gifView.clearColorFilter()
     }
 
-    private fun applyGifToView(drawable: GifDrawable) {
+    private fun applyGifToView(drawable: GifDrawable, gifWidth: Int, gifHeight: Int) {
+        prepareImageView(gifWidth, gifHeight)
         itemView.gifView.setImageDrawable(drawable)
         itemView.gifView.clearColorFilter()
     }
 
-    private fun getPreviewImageObserver(): ImageObserver {
-        return object : ImageObserver() {
-            override fun onBitmapResult(bitmap: Bitmap?) {
-                Log.d(tag, "preview is downloaded ${item.itemNum}")
-                if (bitmap != null) {
-                    if (requiredToShow) {
-                        applyThumbToView(bitmap)
-                    }
-                } else {
-                    Log.e(tag, "Thumb load failed")
+    private fun getPreviewImageObserver(): CustomImageObserver {
+        return object : CustomImageObserver() {
+            override fun onBitmapResult(bitmap: Bitmap) {
+                if (requiredToShow) {
+                    applyThumbToView(bitmap)
                 }
             }
         }
