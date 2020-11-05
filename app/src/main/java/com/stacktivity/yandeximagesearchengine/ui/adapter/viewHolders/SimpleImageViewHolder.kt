@@ -5,48 +5,37 @@ import android.graphics.Color
 import android.util.Log
 import android.view.View
 import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
-import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
-import com.stacktivity.yandeximagesearchengine.util.FileWorker
-import com.stacktivity.yandeximagesearchengine.util.ImageDownloadHelper
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader
+import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
 import kotlinx.android.synthetic.main.simple_item_image_list.view.gifView
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import pl.droidsonroids.gif.GifDrawable
 import java.io.File
-import java.nio.ByteBuffer
 
-@ExperimentalUnsignedTypes
 internal class SimpleImageViewHolder(
-        itemView: View,
-        private val eventListener: EventListener
+    itemView: View,
+    private val eventListener: EventListener
 ) : BaseImageViewHolder(itemView) {
     val tag: String = SimpleImageViewHolder::class.java.simpleName
     private val viewHeight = itemView.gifView.layoutParams.height
-    private var imageObserver: ImageObserver? = null
+    private var imageObserver: CustomImageObserver? = null
 
-    private abstract class ImageObserver(val myUrl: String) : ImageDownloadHelper.ImageObserver() {
+    private abstract class CustomImageObserver(val myUrl: String) : ImageObserver() {
         var requiredToShow = true
     }
 
     fun bind(imageUrl: String, bufferFile: File? = null) {
         reset()
 
-        if (bufferFile != null && bufferFile.exists()) {
-            applyImageFromCache(bufferFile)
-        } else {
-            Log.d(tag, "view: ${viewHeight}x${viewHeight}")
-            prepareImageView(viewHeight, viewHeight)
-            imageObserver = getImageObserver(bufferFile, imageUrl)
-            downloadImage(imageUrl, imageObserver as ImageObserver)
-        }
+        // val imageBitmap = BitmapUtils.getSimplifiedBitmap(cacheFile.path, reqHeight = viewHeight)
+        imageObserver = getImageObserver(imageUrl)
+        BufferedImageLoader.getImage(imageUrl, imageObserver!!, bufferFile)
     }
 
     private fun reset() {
         imageObserver?.requiredToShow = false
+        prepareImageView(viewHeight, viewHeight)
     }
 
     private fun prepareImageView(bitmapWidth: Int, bitmapHeight: Int) {
@@ -60,26 +49,7 @@ internal class SimpleImageViewHolder(
         }
     }
 
-    private fun applyImageFromCache(cacheFile: File): Boolean {
-        var res = false
-        if (BitmapUtils.fileIsAnGifImage(cacheFile.path)) {
-            applyGifToView(cacheFile)
-            res = true
-        } else if (BitmapUtils.fileIsAnImage(cacheFile.path)) {
-            val imageBitmap =
-                    BitmapUtils.getSimplifiedBitmap(cacheFile.path, reqHeight = viewHeight)
-            if (imageBitmap != null) {
-                applyBitmapToView(imageBitmap)
-                res = true
-            }
-        }
-
-        return res
-    }
-
     private fun applyBitmapToView(imageBitmap: Bitmap) {
-        /*itemView.imageView.visibility = View.VISIBLE
-        itemView.gifView.visibility = View.GONE*/
         prepareImageView(imageBitmap.width, imageBitmap.height)
         itemView.gifView.apply {
             setImageBitmap(imageBitmap)
@@ -87,81 +57,42 @@ internal class SimpleImageViewHolder(
         }
     }
 
-    private fun applyGifToView(buffer: ByteBuffer) {
-        val gifSize = getGifSize(buffer)
-        prepareImageView(gifSize.first, gifSize.second)
-        itemView.gifView.apply {
-            setImageDrawable(GifDrawable(buffer))
+    private fun applyGifToView(drawable: GifDrawable, gifWidth: Int, gifHeight: Int) {
+        prepareImageView(gifWidth, gifHeight)
+        itemView.gifView.run {
+            setImageDrawable(drawable)
             clearColorFilter()
         }
-
     }
 
-    private fun applyGifToView(cacheFile: File) {
-        val gifSize = BitmapUtils.getImageSize(cacheFile)
-        prepareImageView(gifSize.first, gifSize.second)
-        itemView.gifView.apply {
-            setImageDrawable(GifDrawable(cacheFile))
-            itemView.gifView.clearColorFilter()
-        }
+    private fun incorrectImageResolution(width: Int, height: Int): Boolean =
+        width < MIN_IMAGE_WIDTH
+                || height < MIN_IMAGE_HEIGHT
+                || width.toFloat() / height > 2.5  // exclude logos
 
-    }
-
-    private fun incorrectImage(imageBitmap: Bitmap): Boolean =
-            imageBitmap.width < MIN_IMAGE_WIDTH
-                    || imageBitmap.height < MIN_IMAGE_HEIGHT
-                    || imageBitmap.width.toFloat() / imageBitmap.height > 2.5  // exclude logos
-
-    private fun incorrectGifResolution(buffer: ByteBuffer): Boolean {
-        val gifSize = getGifSize(buffer)
-
-        return gifSize.first < MIN_IMAGE_WIDTH || gifSize.second < MIN_IMAGE_HEIGHT
-    }
-
-    private fun getImageObserver(bufferFile: File?, imageUrl: String): ImageObserver {
-        return object : ImageObserver(imageUrl) {
-            override fun onBitmapResult(bitmap: Bitmap?) {
-                if (bitmap != null) {
-                    if (incorrectImage(bitmap)) {
-                        eventListener.onSmallImage(myUrl)
-                    } else if (requiredToShow) {
-                        val resBitmap = getOptimizedImage(bitmap)
-
-                        Log.d(tag, "image: ${resBitmap.width}x${resBitmap.height}")
-                        prepareImageView(resBitmap.width, resBitmap.height)
-                        applyBitmapToView(resBitmap)
-
-                        if (bufferFile != null) {
-                            BitmapUtils.saveBitmapToFile(resBitmap, bufferFile)
-                        }
-                    }
-                } else {
-                    eventListener.onImageLoadFailed(myUrl)
-                }
-            }
-
-            override fun onGifResult(buffer: ByteBuffer) {
-                if (incorrectGifResolution(buffer)) {
+    private fun getImageObserver(imageUrl: String): CustomImageObserver {
+        return object : CustomImageObserver(imageUrl) {
+            override fun onBitmapResult(bitmap: Bitmap) {
+                if (incorrectImageResolution(bitmap.width, bitmap.height)) {
                     eventListener.onSmallImage(myUrl)
                 } else if (requiredToShow) {
-                    applyGifToView(buffer)
-                    if (bufferFile != null) {
-                        GlobalScope.launch {
-                            FileWorker.saveBytesToFile(buffer, bufferFile)
-                        }
-                    }
+                    val resBitmap = getOptimizedImage(bitmap)
+                    applyBitmapToView(resBitmap)
                 }
             }
-        }
-    }
 
-    private fun downloadImage(url: String, imageObserver: ImageObserver) {
-        ImageDownloadHelper.getInstance().getImageAsync(
-                poolTag = tag,
-                url = url,
-                timeoutMs = 5000,
-                imageObserver = imageObserver
-        )
+            override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
+                if (incorrectImageResolution(width, height)) {
+                    eventListener.onSmallImage(myUrl)
+                } else if (requiredToShow) {
+                    applyGifToView(drawable, width, height)
+                }
+            }
+
+            override fun onException(e: Throwable) {
+                eventListener.onImageLoadFailed(myUrl)
+            }
+        }
     }
 
     private fun getOptimizedImage(imageBitmap: Bitmap): Bitmap {
@@ -170,10 +101,10 @@ internal class SimpleImageViewHolder(
         if (imageBitmap.height > viewHeight) {  // reduce image size to improve performance
             val reqWidth = calculateViewWidth(viewHeight, imageBitmap.width, imageBitmap.height)
 
-            res =  Bitmap.createScaledBitmap(
-                    imageBitmap,
-                    reqWidth, viewHeight,
-                    false
+            res = Bitmap.createScaledBitmap(
+                imageBitmap,
+                reqWidth, viewHeight,
+                false
             ) ?: imageBitmap
         }
 
