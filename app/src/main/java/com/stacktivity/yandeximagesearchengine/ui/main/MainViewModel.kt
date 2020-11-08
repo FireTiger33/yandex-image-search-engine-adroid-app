@@ -16,8 +16,9 @@ import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.providers.MainContentProvider
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.EventForResult
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageItemLoader
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader
 import kotlinx.coroutines.*
-import java.io.File
 
 class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private val _dataLoading = MutableLiveData<Boolean>().apply { value = false }
@@ -36,7 +37,9 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private var currentQuery: String = ""
     private var isLastPage = false
 
-    private val imageBufferFilesDir: File = App.getInstance().cacheDir
+    private val imageBufferFilesDir = App.getInstance().cacheDir
+    private val imageLoader = BufferedImageLoader(imageBufferFilesDir.path)
+    private val imageItemLoader = BufferedImageItemLoader(imageBufferFilesDir.path)
 
     private var adapter: ImageListAdapter? = null
 
@@ -46,15 +49,17 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
 
     internal fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter {
         return if (adapter != null) {
+            imageItemLoader.priorityMaxImageWidth = maxImageWidth
             adapter!!.onChangeScreenConfiguration(maxImageWidth)
             adapter!!
         } else ImageListAdapter(
             MainContentProvider,
             MainContentProvider,
-            imageBufferFilesDir.path,
+            imageLoader, imageItemLoader,
             maxImageWidth
         ).also {
             adapter = it
+            imageItemLoader.priorityMaxImageWidth = maxImageWidth
         }
     }
 

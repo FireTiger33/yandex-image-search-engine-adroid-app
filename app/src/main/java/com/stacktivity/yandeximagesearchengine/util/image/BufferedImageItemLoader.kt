@@ -11,7 +11,11 @@ import java.io.File
 import java.lang.NullPointerException
 import java.nio.ByteBuffer
 
-class BufferedImageItemLoader: BufferedImageLoader() {
+class BufferedImageItemLoader(
+    private val cacheDir: String,
+    var priorityMaxImageWidth: Int? = null
+) : BufferedImageProvider<ImageItem> {
+
     private class MapperImageObserver {
         companion object {
             fun mapFrom(observer: ImageObserver): ImageDownloadHelper.ImageObserver {
@@ -34,73 +38,82 @@ class BufferedImageItemLoader: BufferedImageLoader() {
         }
     }
 
-    companion object {
-        val tag: String = BufferedImageItemLoader::class.java.simpleName
-
-        fun getImage(
-            item: ImageItem,
-            reqImageWidth: Int, minImageWidth: Int,
-            previewImageObserver: ImageObserver? = null,
-            imageObserver: ImageObserver,
-            cacheFile: File? = null,
-            onImageSelected: suspend (width: Int, height: Int) -> Unit,
-        ) = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-
-            cacheFile?.let {
-                if (resultFromCache(it, imageObserver)) {
-                    return@launch
-                }
+    override fun getImage(
+        item: ImageItem,
+        imageObserver: ImageObserver,
+        previewImageObserver: ImageObserver?,
+    ) {
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            val cacheFile = getCacheFile(item)
+            if (resultFromCache(cacheFile, imageObserver)) {
+                return@launch
             }
-
-            val imageNum = getMaxAllowSizePreviewNum(item.dups, reqImageWidth, minImageWidth)
-            val selectedImage = item.dups[imageNum]
-            onImageSelected(selectedImage.width, selectedImage.height)
-
+            val imageNum = getMaxAllowSizePreviewNum(item.dups)
             val cachingObserver = getCachingObserver(imageObserver, cacheFile)
-
             val imageUrls = (
                     item.dups.slice(0..imageNum).reversed() +
                             item.dups.slice(imageNum + 1 until item.dups.size)
                     ).map { x -> x.url }
 
             previewImageObserver?.let { downloadPreview(item.thumb.url, MapperImageObserver.mapFrom(it)) }
-            downloadImage(imageUrls, cachingObserver, reqImageWidth)
+            downloadImage(imageUrls, cachingObserver)
         }
+    }
 
-        private fun downloadImage(
-            imageUrls: List<String>,
-            imageObserver: ImageDownloadHelper.ImageObserver,
-            reqImageWidth: Int? = null, reqImageHeight: Int? = null
-        ) {
-            ImageDownloadHelper.getInstance().getOneOfImage(
-                    poolTag = tag,
-                    urls = imageUrls,
-                    reqWidth = reqImageWidth, reqHeight = reqImageHeight,
-                    minWidth = Constants.MIN_IMAGE_WIDTH, minHeight = Constants.MIN_IMAGE_HEIGHT,
-                    timeoutMs = 3000,
-                    imageObserver = imageObserver
-            )
-        }
+    override fun getCacheFile(item: ImageItem): File {
+        val fileName = item.hashCode()
+        return File(cacheDir + File.separator + fileName)
+    }
 
-        private fun downloadPreview(url: String, imageObserver: ImageDownloadHelper.ImageObserver) {
-            ImageDownloadHelper.getInstance().getImageAsync(
-                    poolTag = tag + "_thumb",
-                    url = url,
-                    timeoutMs = 2000,
-                    imageObserver = imageObserver
-            )
-        }
+    private fun downloadImage(
+        imageUrls: List<String>,
+        imageObserver: ImageDownloadHelper.ImageObserver,
+    ) {
+        ImageDownloadHelper.getInstance().getOneOfImage(
+            poolTag = tag,
+            urls = imageUrls,
+            reqWidth = priorityMaxImageWidth,
+            minWidth = Constants.MIN_IMAGE_WIDTH, minHeight = Constants.MIN_IMAGE_HEIGHT,
+            timeoutMs = 3000,
+            imageObserver = imageObserver
+        )
+    }
 
-        private fun getMaxAllowSizePreviewNum(
-                images: List<ImageData>, maxImageWidth: Int, minImageWidth: Int
-        ): Int {
-            images.forEachIndexed { i, preview ->
-                if (preview.width <= maxImageWidth) {
-                    return if (preview.width >= minImageWidth || i == 0) i else i - 1
-                }
+    private suspend fun resultFromCache(
+        cacheFile: File,
+        imageObserver: ImageObserver
+    ): Boolean {
+        return BufferedImageLoader.resultFromCache(cacheFile, imageObserver)
+    }
+
+    private fun getCachingObserver(
+        imageObserver: ImageObserver,
+        cacheFile: File
+    ): ImageDownloadHelper.ImageObserver {
+        return BufferedImageLoader.getCachingObserver(imageObserver, cacheFile)
+    }
+
+    private fun downloadPreview(url: String, imageObserver: ImageDownloadHelper.ImageObserver) {
+        ImageDownloadHelper.getInstance().getImageAsync(
+            poolTag = tag + "_thumb",
+            url = url,
+            timeoutMs = 2000,
+            imageObserver = imageObserver
+        )
+    }
+
+    private fun getMaxAllowSizePreviewNum(images: List<ImageData>): Int {
+        val reqWidth = priorityMaxImageWidth ?: Int.MAX_VALUE
+        images.forEachIndexed { i, preview ->
+            if (preview.width <= reqWidth) {
+                return i /*if (preview.width >= minImageWidth || i == 0) i else i - 1*/
             }
-
-            return images.size - 1  // returns index of image with min size
         }
+
+        return images.size - 1  // returns index of image with min size
+    }
+
+    companion object {
+        private val tag: String = BufferedImageItemLoader::class.java.simpleName
     }
 }

@@ -1,39 +1,36 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter
 
-import android.content.Intent
-import android.net.Uri
 import android.util.SparseBooleanArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat.startActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.providers.ImageItemsProvider
 import com.stacktivity.yandeximagesearchengine.providers.SubImagesProvider
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import com.stacktivity.yandeximagesearchengine.util.getColor
 import com.stacktivity.yandeximagesearchengine.util.getString
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
 import com.stacktivity.yandeximagesearchengine.util.shortToast
-import java.io.File
 
 internal class ImageListAdapter(
     private val contentProvider: ImageItemsProvider,
     private val subImagesProvider: SubImagesProvider,
-    private val imageBufferFilesDirPath: String,
+    private val imageLoader: BufferedImageProvider<String>,
+    private val imageItemLoader: BufferedImageProvider<ImageItem>,
     private var maxImageWidth: Int
 ) : RecyclerView.Adapter<ImageItemViewHolder>(), ImageItemViewHolder.EventListener {
 
-    private var parentWidth: Int = 0
     private val selectedArray: SparseBooleanArray = SparseBooleanArray()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageItemViewHolder {
-        parentWidth = parent.measuredWidth
         val inflater = LayoutInflater.from(parent.context)
         val view = inflater.inflate(R.layout.item_image_list, parent, false)
-        val vh = ImageItemViewHolder(view, this)
+        val vh = ImageItemViewHolder(view, this, imageItemLoader)
         vh.innerRecyclerView.run {
-            adapter = SimpleImageListAdapter().apply {
+            adapter = SimpleImageListAdapter(imageLoader).apply {
                 setNewContentProvider(object :  // TODO
                     SimpleImageListAdapter.ContentProvider {
                     override fun getItemCount(): Int {
@@ -52,14 +49,6 @@ internal class ImageListAdapter(
                 eventListener = object : SimpleImageListAdapter.EventListener {
                     override fun onImagesLoadFailed() {
                         toggleView(vh, false)
-                    }
-
-                    override fun onItemClick(item: String) {
-                        startActivity(
-                            vh.itemView.context,
-                            Intent(Intent.ACTION_VIEW).setData(Uri.parse(item)),
-                            null
-                        )
                     }
                 }
             }
@@ -131,17 +120,13 @@ internal class ImageListAdapter(
     override fun getItemCount() = contentProvider.getItemCount()
 
     override fun onBindViewHolder(holder: ImageItemViewHolder, positionVh: Int) {
-        val cacheDir = imageBufferFilesDirPath + File.separator
         val item = contentProvider.getItemOnPosition(positionVh)
         holder.maxImageWidth = maxImageWidth
-        holder.bind(item, File(cacheDir + item.itemNum))
-        (holder.innerRecyclerView.adapter as SimpleImageListAdapter?)?.apply {
-            this.cacheDir = cacheDir
-            notifyDataSetChanged()
-        }
-        toggleView(holder, selectedArray.get(item.itemNum, false))
+        holder.bind(item)
+        holder.innerRecyclerView.adapter?.notifyDataSetChanged()
 
-        if (selectedArray.get(item.itemNum, false)) {
+        val isExpanded = toggleView(holder, selectedArray.get(item.itemNum, false))
+        if (isExpanded) {
             showOtherImages(holder)
         }
     }

@@ -10,26 +10,34 @@ import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
 import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.saveBytesToFile
 import java.lang.NullPointerException
 
-open class BufferedImageLoader {
-    companion object {
-        val tag: String = BufferedImageLoader::class.java.simpleName
+open class BufferedImageLoader(private val cacheDir: String) : BufferedImageProvider<String> {
 
-        fun getImage(imageUrl: String,
-                     imageObserver: ImageObserver,
-                     cacheFile: File? = null
-        ) = CoroutineScope(Dispatchers.IO).launch {
-            cacheFile?.let {
-                if (resultFromCache(it, imageObserver)) {
-                    return@launch
-                }
+    override fun getImage(
+        item: String,
+        imageObserver: ImageObserver,
+        previewImageObserver: ImageObserver?,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val cacheFile = getCacheFile(item)
+            if (resultFromCache(cacheFile, imageObserver)) {
+                return@launch
             }
 
             val cachingObserver = getCachingObserver(imageObserver, cacheFile)
 
-            downloadImage(imageUrl, cachingObserver)
+            downloadImage(item, cachingObserver)
         }
+    }
 
-        suspend fun resultFromCache(
+    override fun getCacheFile(item: String): File {
+        val fileName = item.hashCode()
+        return File(cacheDir + File.separator + fileName)
+    }
+
+    companion object {
+        private val tag: String = BufferedImageLoader::class.java.simpleName
+
+        internal suspend fun resultFromCache(
             cacheFile: File,
             imageObserver: ImageObserver
         ): Boolean {
@@ -66,7 +74,7 @@ open class BufferedImageLoader {
             }
         }
 
-        fun getCachingObserver(
+        internal fun getCachingObserver(
             imageObserver: ImageObserver,
             cacheFile: File?
         ): ImageDownloadHelper.ImageObserver {
@@ -76,7 +84,7 @@ open class BufferedImageLoader {
                     if (bitmap != null) {
                         imageObserver.onBitmapResult(bitmap)
                         if (cacheFile != null) {
-                            BitmapUtils.saveBitmapToFile(bitmap, cacheFile, onException =  {
+                            BitmapUtils.saveBitmapToFile(bitmap, cacheFile, onException = {
                                 // TODO delete cache
                             })
                         }

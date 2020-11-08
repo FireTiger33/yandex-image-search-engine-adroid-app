@@ -7,11 +7,10 @@ import android.view.View
 import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
-import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader
+import com.stacktivity.yandeximagesearchengine.util.image.ImageProvider
 import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
 import kotlinx.android.synthetic.main.simple_item_image_list.view.gifView
 import pl.droidsonroids.gif.GifDrawable
-import java.io.File
 
 internal class SimpleImageViewHolder(
     itemView: View,
@@ -25,12 +24,12 @@ internal class SimpleImageViewHolder(
         var requiredToShow = true
     }
 
-    fun bind(imageUrl: String, bufferFile: File? = null) {
+    fun bind(imageUrl: String, imageProvider: ImageProvider<String>) {
         reset()
 
         // val imageBitmap = BitmapUtils.getSimplifiedBitmap(cacheFile.path, reqHeight = viewHeight)
         imageObserver = getImageObserver(imageUrl)
-        BufferedImageLoader.getImage(imageUrl, imageObserver!!, bufferFile)
+        imageProvider.getImage(imageUrl, imageObserver!!)
     }
 
     private fun reset() {
