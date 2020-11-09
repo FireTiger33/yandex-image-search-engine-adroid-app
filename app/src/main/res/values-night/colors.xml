@@ -6,6 +6,8 @@
     <color name="itemOnClickOutSideColor">#363738</color>
     <color name="colorImagePreview">#8c8c8c</color>
 
+    <color name="searchViewCursorColor">@android:color/holo_blue_dark</color>
+
     <color name="simple_image_list_background">#2c2d2e</color>
 
 

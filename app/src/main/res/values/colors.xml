@@ -8,6 +8,8 @@
     <color name="itemOnClickOutSideColor">#E1E3E6</color>
     <color name="colorImagePreview">#D8D8D8</color>
 
+    <color name="searchViewCursorColor">@android:color/holo_blue_light</color>
+
     <color name="simple_image_list_background">#F6F6F6</color>
 
     <!-- Text colors -->
