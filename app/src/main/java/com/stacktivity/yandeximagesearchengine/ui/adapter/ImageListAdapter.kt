@@ -9,6 +9,7 @@ import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.providers.ImageItemsProvider
 import com.stacktivity.yandeximagesearchengine.providers.SubImagesProvider
+import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import com.stacktivity.yandeximagesearchengine.util.getColor
 import com.stacktivity.yandeximagesearchengine.util.getString
@@ -24,6 +25,10 @@ internal class ImageListAdapter(
 ) : RecyclerView.Adapter<ImageItemViewHolder>(), ImageItemViewHolder.EventListener {
 
     private val selectedArray: SparseBooleanArray = SparseBooleanArray()
+
+    init {
+        setHasStableIds(true)
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageItemViewHolder {
         val inflater = LayoutInflater.from(parent.context)
@@ -72,7 +77,15 @@ internal class ImageListAdapter(
         }
 
         return vh
+    }
 
+    fun prefetchViewHolders(viewPool: PrefetchRecycledViewPool) {
+        val currentRecycledViews = viewPool.getRecycledViewCount(0)
+        if (currentRecycledViews < 8) {
+            viewPool.setViewsCount(0, 8 - currentRecycledViews) { fakeParent, viewType ->
+                onCreateViewHolder(fakeParent, viewType)
+            }
+        }
     }
 
     private fun toggleView(vh: ImageItemViewHolder, toShow: Boolean? = null): Boolean {
