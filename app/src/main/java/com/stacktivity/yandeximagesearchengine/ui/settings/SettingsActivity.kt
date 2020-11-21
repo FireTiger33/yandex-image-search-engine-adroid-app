@@ -1,11 +1,10 @@
-package com.stacktivity.yandeximagesearchengine.ui
+package com.stacktivity.yandeximagesearchengine.ui.settings
 
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.stacktivity.yandeximagesearchengine.R
-import com.stacktivity.yandeximagesearchengine.ui.fragments.SettingsFragment
 
 class SettingsActivity : AppCompatActivity() {
 

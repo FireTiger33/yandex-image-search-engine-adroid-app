@@ -1,4 +1,4 @@
-package com.stacktivity.yandeximagesearchengine.ui.fragments
+package com.stacktivity.yandeximagesearchengine.ui.settings
 
 import android.content.SharedPreferences
 import android.os.Bundle
