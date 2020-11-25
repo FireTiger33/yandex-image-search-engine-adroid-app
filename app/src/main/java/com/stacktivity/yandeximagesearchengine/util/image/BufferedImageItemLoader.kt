@@ -38,15 +38,11 @@ class BufferedImageItemLoader(
             if (resultFromCache(cacheFile, imageObserver)) {
                 return@launch
             }
-            val imageNum = getMaxAllowSizePreviewNum(item.dups)
-            val cachingObserver = getCachingObserver(imageObserver, cacheFile)
-            val imageUrls = (
-                    item.dups.slice(0..imageNum).reversed() +
-                            item.dups.slice(imageNum + 1 until item.dups.size)
-                    ).map { x -> x.url }
 
-            previewImageObserver?.let { downloadPreview(item.thumb.url, MapperImageObserver.mapFrom(it)) }
-            downloadImage(imageUrls, cachingObserver)
+            val sortedIterator = getSortedIterator(item.dups)
+
+            previewImageObserver?.let { downloadPreview(item.thumb.url, previewImageObserver) }
+            downloadImage(sortedIterator, imageObserver, getCacheFile(item))
         }
     }
 
@@ -120,11 +116,39 @@ class BufferedImageItemLoader(
         val reqWidth = priorityMaxImageWidth ?: Int.MAX_VALUE
         images.forEachIndexed { i, preview ->
             if (preview.width <= reqWidth) {
-                return i /*if (preview.width >= minImageWidth || i == 0) i else i - 1*/
+                return i
             }
         }
 
-        return images.size - 1  // returns index of image with min size
+        return images.lastIndex  // returns index of image with min size
+    }
+
+    /**
+     * Creates an iterator for traversing data in the optimal order
+     *
+     * The first two are the most appropriate [priorityMaxImageWidth],
+     * then in ascending order of size.
+     * At the end there are elements descending from priority size.
+     */
+    private fun getSortedIterator(data: List<ImageData>): Iterator<ImageData> {
+        val imageNum = getMaxAllowSizePreviewNum(data)
+        var sortedIterator: Iterator<ImageData> = if (imageNum < data.lastIndex) {
+            val nextImageIsAllow = if (priorityMaxImageWidth != null) {
+                data[imageNum + 1].width >= 0.5 * priorityMaxImageWidth!!
+            } else false
+            val nextImageIndex = if (nextImageIsAllow) imageNum + 2 else imageNum + 1
+
+            ConcatIterator(data.subList(imageNum, nextImageIndex).iterator()) +
+                data.subList(0, imageNum).asReversed().iterator()
+        } else {
+            data.subList(0, imageNum + 1).asReversed().iterator()
+        }
+        if (imageNum + 1 < data.lastIndex) {
+            val secondIterator = data.subList(imageNum + 2, data.size).iterator()
+            sortedIterator = ConcatIterator(sortedIterator).plus(secondIterator)
+        }
+
+        return sortedIterator
     }
 
     companion object {
