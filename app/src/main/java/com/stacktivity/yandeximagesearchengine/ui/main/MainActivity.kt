@@ -10,6 +10,7 @@ import android.view.WindowManager
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.ui.SettingsActivity
 import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
@@ -23,6 +24,10 @@ const val KEY_QUERY = "query"
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
+
+    companion object {
+        private var viewPool: PrefetchRecycledViewPool? = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,9 +65,26 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         val size = Point()
         windowManager.defaultDisplay.getSize(size)
         val maxImageWidth = size.x
+
+        setupViewPool()
+
         val layoutManager = image_list_rv.layoutManager as LinearLayoutManager
-        image_list_rv.adapter = viewModel.getImageItemListAdapter(maxImageWidth)
+        layoutManager.recycleChildrenOnDetach = true
+        image_list_rv.adapter = viewModel.getImageItemListAdapter(maxImageWidth).apply {
+            prefetchViewHolders(viewPool!!)
+        }
+
         image_list_rv.addOnScrollListener(getImageScrollListener(layoutManager))
+    }
+
+    private fun setupViewPool() {
+        if (viewPool == null) {
+            Log.d("MainActivity", "initialize pool")
+            viewPool = PrefetchRecycledViewPool(this).apply {
+                prepare()
+            }
+        }
+        image_list_rv.setRecycledViewPool(viewPool)
     }
 
     private fun setupObservers() {
@@ -156,5 +178,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString(KEY_QUERY, searchView.query.toString())
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onNightModeChanged(mode: Int) {
+        viewPool?.clear()
+        viewPool = null
     }
 }

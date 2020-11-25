@@ -5,7 +5,7 @@ import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.stacktivity.yandeximagesearchengine.App
+import com.stacktivity.yandeximagesearchengine.util.CacheWorker
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
 import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
@@ -16,8 +16,9 @@ import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.providers.MainContentProvider
 import com.stacktivity.yandeximagesearchengine.ui.adapter.ImageListAdapter
 import com.stacktivity.yandeximagesearchengine.util.EventForResult
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageItemLoader
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader
 import kotlinx.coroutines.*
-import java.io.File
 
 class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private val _dataLoading = MutableLiveData<Boolean>().apply { value = false }
@@ -36,7 +37,8 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private var currentQuery: String = ""
     private var isLastPage = false
 
-    private val imageBufferFilesDir: File = App.getInstance().cacheDir
+    private val imageLoader = BufferedImageLoader()
+    private val imageItemLoader = BufferedImageItemLoader()
 
     private var adapter: ImageListAdapter? = null
 
@@ -46,15 +48,17 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
 
     internal fun getImageItemListAdapter(maxImageWidth: Int): ImageListAdapter {
         return if (adapter != null) {
+            imageItemLoader.priorityMaxImageWidth = maxImageWidth
             adapter!!.onChangeScreenConfiguration(maxImageWidth)
             adapter!!
         } else ImageListAdapter(
             MainContentProvider,
             MainContentProvider,
-            imageBufferFilesDir.path,
+            imageLoader, imageItemLoader,
             maxImageWidth
         ).also {
             adapter = it
+            imageItemLoader.priorityMaxImageWidth = maxImageWidth
         }
     }
 
@@ -111,7 +115,7 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private fun onFetchComplete(imageBlock: Blocks, isNewQuery: Boolean, onSuccess: () -> Unit) {
         val html = imageBlock.html
         numLoadedPages++
-        GlobalScope.launch(Dispatchers.Default) {
+        CoroutineScope(Dispatchers.Default).launch {
             val itemList = YandexImageUtil.getImageItemListFromHtml(
                 html = html,
                 startIndexingItemsFromScratch = isNewQuery
@@ -131,7 +135,7 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
      */
     private fun applyData(itemList: List<ImageItem>, isNewQuery: Boolean) = runBlocking {
         if (isNewQuery) {
-            val clearCacheJob = async(Dispatchers.IO) { clearCache() }
+            val clearCacheJob = async(Dispatchers.IO) { CacheWorker.clearAllCache() }
             MainRepository.getInstance().clearAllData()
             MainRepository.getInstance().addToImageList(itemList)
             clearCacheJob.await()
@@ -142,12 +146,6 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
             withContext(Dispatchers.Main) {
                 adapter!!.notifyItemRangeInserted(itemCount, MainContentProvider.getItemCount() - 1)
             }
-        }
-    }
-
-    private fun clearCache() {
-        imageBufferFilesDir.listFiles()?.forEach { file ->
-            file.delete()
         }
     }
 

@@ -28,5 +28,6 @@
     <string name="captcha_title">Пожалуйста введите капчу</string>
     <string name="info_for_entering_captcha">Используйте строчные и прописные буквы, знаки препинания. Между словами поставьте пробел.</string>
     <string name="error_message_enter_captcha">Неверно, попробуйте ещё раз!</string>
+    <string name="failed_captcha_upload">Не удалось отобразить капчу</string>
 
 </resources>

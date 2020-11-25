@@ -14,18 +14,16 @@ import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
-import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageItemLoader
+import com.stacktivity.yandeximagesearchengine.util.image.ImageProvider
 import com.stacktivity.yandeximagesearchengine.util.getString
 import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
 import kotlinx.android.synthetic.main.item_image_list.view.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import pl.droidsonroids.gif.GifDrawable
-import java.io.File
 
 internal class ImageItemViewHolder(
     itemView: View,
-    private val eventListener: EventListener
+    private val eventListener: EventListener,
+    private val imageProvider: ImageProvider<ImageItem>
 ) : BaseImageViewHolder(itemView) {
     var maxImageWidth: Int = 0
     val innerRecyclerView: RecyclerView
@@ -52,26 +50,20 @@ internal class ImageItemViewHolder(
     private var imageObserver: CustomImageObserver? = null
     private var previewImageObserver: CustomImageObserver? = null
 
-    fun bind(item: ImageItem, bufferFile: File? = null) {
+    fun bind(item: ImageItem) {
         this.item = item
         reset()
+        prepareImageView(item.dups[0].width, item.dups[0].height)
         bindTextViews(item.dups[0])
         showProgressBar()
 
         previewImageObserver = getPreviewImageObserver()
         imageObserver = getImageObserver()
-        BufferedImageItemLoader.getImage(
+        imageProvider.getImage(
             item = item,
-            reqImageWidth = maxImageWidth,
-            minImageWidth = maxImageWidth / 2,
             previewImageObserver = previewImageObserver,
-            imageObserver = imageObserver!!,
-            cacheFile = bufferFile
-        ) { width, height ->
-            withContext(Dispatchers.Main) {
-                prepareImageView(width, height)
-            }
-        }
+            imageObserver = imageObserver!!
+        )
     }
 
     private fun showProgressBar() {
@@ -153,6 +145,7 @@ internal class ImageItemViewHolder(
                 (itemView.image_container.parent as ViewGroup).run {
                     paddingLeft + paddingRight
                 } * 2
+        Log.d(tag, "ImageViewWidth: $imageViewWidth")
         val calcImageViewHeight = calculateViewHeight(imageViewWidth, imageWidth, imageHeight)
         itemView.gifView.run {
             clearAnimation()

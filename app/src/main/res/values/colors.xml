@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#6200EE</color>
-    <color name="colorPrimaryDark">#3700B3</color>
+    <color name="colorPrimary">#FFFFFF</color>
+    <color name="colorPrimaryDark">#EC407A</color>
     <color name="colorAccent">#0295d9</color>
 
     <color name="backgroundColor">#FFFFFF</color>
     <color name="itemOnClickOutSideColor">#E1E3E6</color>
     <color name="colorImagePreview">#D8D8D8</color>
+
+    <color name="searchViewCursorColor">@android:color/holo_blue_light</color>
 
     <color name="simple_image_list_background">#F6F6F6</color>
 

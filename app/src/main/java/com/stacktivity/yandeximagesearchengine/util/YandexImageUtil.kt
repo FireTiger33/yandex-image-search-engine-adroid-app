@@ -5,6 +5,7 @@ import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.model.SerpItem
 import com.stacktivity.yandeximagesearchengine.data.model.Thumb
+import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
 
 class YandexImageUtil {
@@ -32,7 +33,8 @@ class YandexImageUtil {
                 val allImages: ArrayList<ImageData> = ArrayList()
                 val allPreview = (item.preview + item.dups)
                     .distinctBy { it.origin?.url?: it.url }
-                    .filter { it.origin?.w?: it.w > MIN_IMAGE_WIDTH }
+                    .filter { it.origin?.w?: it.w > MIN_IMAGE_WIDTH
+                        && it.origin?.h?: it.h > MIN_IMAGE_HEIGHT }
                 allPreview.forEach { preview ->
                     if (preview.origin != null) {
                         allImages.add(
@@ -60,7 +62,9 @@ class YandexImageUtil {
                             itemNum + lastItemIndex,
                             item.snippet.title,
                             item.snippet.url,
-                            allImages.sortedByDescending { it.width },
+                            allImages.apply {
+                                sortByDescending { it.width }
+                            },
                             thumb
                         )
 

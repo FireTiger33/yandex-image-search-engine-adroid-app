@@ -5,17 +5,14 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.Log
-import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.createFile
 import kotlinx.coroutines.*
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import java.nio.ByteBuffer
 
 class BitmapUtils {
 
     companion object {
+        private val mScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val tag = BitmapUtils::class.java.simpleName
 
         /**
@@ -42,17 +39,21 @@ class BitmapUtils {
             return@withContext options.outMimeType == "image/gif"
         }
 
-        fun getGifSize(buffer: ByteBuffer): Pair<Int, Int> {
-            val bArray = ByteArray(12)
-            buffer.get(bArray, 0, 11)
+        /**
+         * Checks whether the buffer contains a "GIF" header
+         */
+        fun bufferIsAGif(buffer: ByteBuffer): Boolean {
+            if (buffer.capacity() < 4) {
+                return false
+            }
+            val head = ByteArray(3)
+            buffer.get(head, 0, 3)
             buffer.rewind()
-            val width = bArray[6].toUByte() + (bArray[7].toUInt() shl 8)
-            val height = bArray[8].toUByte() + (bArray[9].toUInt() shl 8)
 
-            return Pair(width.toInt(), height.toInt())
+            return head.toString(Charsets.UTF_8) == "GIF"
         }
 
-        suspend fun getImageSize(file: File): Pair<Int, Int> = withContext(Dispatchers.IO) {
+        suspend fun getImageSize(file: File): Pair<Int, Int> = withContext(Dispatchers.IO) {  // TODO remove
             val options = BitmapFactory.Options()
             options.inJustDecodeBounds = true
             BitmapFactory.decodeFile(file.path, options)
@@ -66,7 +67,7 @@ class BitmapUtils {
         /**
          * Simplifies Bitmap to desired resolution
          */
-        fun getSimplifiedBitmap(
+        suspend fun getSimplifiedBitmap(
             imagePath: String,
             reqWidth: Int = -1, reqHeight: Int = -1,
             onResult: suspend (Bitmap?) -> Unit
@@ -108,37 +109,10 @@ class BitmapUtils {
             }
         }
 
-        /**
-         * Non-blocking function for saving Bitmap to file
-         * without loss of quality
-         */
-        fun saveBitmapToFile(
-            bitmap: Bitmap,
-            destFile: File,
-            onException: suspend (IOException) -> Unit
-        ) = CoroutineScope(SupervisorJob()).launch(Dispatchers.IO) {
-                val bos = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos)
-
-            if (!destFile.exists()) {
-                if (!createFile(destFile)) {
-                    return@launch
-                }
-            }
-
-            try {
-                FileOutputStream(destFile).use {
-                    it.write(bos.toByteArray())
-                }
-            } catch (e: IOException) {
-                onException(e)
-                Log.e(tag, "saveBitmapToFile: I/O error")
-            }
-        }
-
         fun getBitmapFromFile(imageFile: File, onResult: suspend (Bitmap?) -> Unit)
-                = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                = mScope.launch {
             var res: Bitmap? = null
+            Log.d(tag, "getBitmapFromFile thread: ${Thread.currentThread().name}")
             try {
                 res = BitmapFactory.decodeFile(imageFile.path, null)
             } catch (e: OutOfMemoryError) {
@@ -169,6 +143,11 @@ class BitmapUtils {
             return inSampleSize
         }
 
+        /**
+         * Apply fast Gaussian blur to image
+         *
+         * @return blurred copy of the original image
+         */
         fun blur(image: Bitmap): Bitmap {
             val scaleFactor = 1f
             val radius = 2f/*20f*/
@@ -186,6 +165,41 @@ class BitmapUtils {
             overlay = FastBlur.doBlur(overlay, radius.toInt(), true)
 
             return overlay
+        }
+
+        /**
+         * Use for getting [Bitmap] from [ByteBuffer]
+         * with ability to get a smaller image if needed.
+         * If you try to get a larger image, original image will be returned.
+         *
+         * If only one of required resolution parameters is set, image will change proportionally
+         *
+         * @param reqWidth  required width
+         * @param reqHeight required height
+         *
+         * @return The decoded bitmap, or null if the image could not be decoded
+         */
+        fun getBitmap(buffer: ByteBuffer, reqWidth: Int? = null, reqHeight: Int? = null): Bitmap? {
+            buffer.rewind()
+            val byteArray = ByteArray(buffer.remaining())
+            buffer.get(byteArray)
+            val preResult: Bitmap? = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+
+            return if (preResult != null && (reqWidth != null || reqHeight != null)) {
+                // Calc out image size
+                val mReqWidth: Int = reqWidth
+                    ?: (reqHeight!!.toFloat() / preResult.height * preResult.width).toInt()
+                val mReqHeight: Int = reqHeight
+                    ?: (reqWidth!!.toFloat() / preResult.width * preResult.height).toInt()
+
+                if (mReqWidth >= preResult.width) {
+                    preResult
+                } else {
+                    Bitmap.createScaledBitmap(preResult, mReqWidth, mReqHeight, false)
+                }
+            } else {
+                preResult
+            }
         }
     }
 }

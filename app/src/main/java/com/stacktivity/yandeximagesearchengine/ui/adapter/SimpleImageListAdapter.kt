@@ -6,9 +6,11 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.SimpleImageViewHolder
-import java.io.File
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
+import com.stacktivity.yandeximagesearchengine.util.sendImage
+import com.stacktivity.yandeximagesearchengine.util.showImage
 
-internal class SimpleImageListAdapter
+internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProvider<String>)
     : RecyclerView.Adapter<SimpleImageViewHolder>(), SimpleImageViewHolder.EventListener
 {
 
@@ -16,10 +18,8 @@ internal class SimpleImageListAdapter
 
     interface EventListener {
         fun onImagesLoadFailed()
-        fun onItemClick(item: String)
     }
 
-    var cacheDir: String? = null
     private var contentProvider: ContentProvider? = null
 
 
@@ -47,13 +47,13 @@ internal class SimpleImageListAdapter
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
         val item = contentProvider!!.getItemOnPosition(position)
 
-        val bufferFile: File? = if (cacheDir != null) {
-            File("${cacheDir}${item.hashCode()}")
-        } else null
-
-        holder.bind(item, bufferFile)
+        holder.bind(item, imageLoader)
+        holder.itemView.setOnLongClickListener {
+            sendImage(imageLoader.getCacheFile(item), holder.itemView.context)
+            true
+        }
         holder.itemView.setOnClickListener {
-            eventListener.onItemClick(item)
+            showImage(imageLoader.getCacheFile(item), holder.itemView.context)
         }
     }
 

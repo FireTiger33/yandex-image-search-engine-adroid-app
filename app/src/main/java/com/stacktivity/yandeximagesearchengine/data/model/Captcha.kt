@@ -6,7 +6,15 @@ import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.ResponseBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.net.URL
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 data class Captcha(
     @SerializedName("img-url")
@@ -31,47 +39,65 @@ data class Captcha(
         host = URL(img_url).host
     }
 
+
+    private suspend fun sendCaptcha(
+        captchaValue: String, getJson: Boolean
+    ): String? = suspendCoroutine {
+        val validCaptchaValue = Regex("""\s+""").replace(captchaValue, "+")
+        val format = if (getJson) "json" else ""
+
+        YandexImagesApi.instance.sendYandexCaptchaForHtml(
+            host = host,
+            returnUrl = returnPath,
+            key = key,
+            value = validCaptchaValue,
+            format = format
+        ).enqueue(object : Callback<ResponseBody> {
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                it.resumeWithException(t)
+            }
+
+            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+                it.resume(response.body()?.string())
+            }
+
+        })
+    }
+
+
+    /**
+     * Send captcha and return result in main thread
+     */
     fun sendCaptcha(
         value: String,
-        onResult: (isSuccess: Boolean, responseBody: String?) -> Unit
+        onResult: (responseBody: String?) -> Unit
     ) {
         if (!isInit) {
             initAddFields()
             isInit = true
         }
 
-        val validValue = Regex("""\s+""").replace(value, "+")
+        var result: String? = null
 
         GlobalScope.launch(Dispatchers.IO) {
-            val response = YandexImagesApi.instance.sendYandexCaptchaForHtml(
-                host = host,
-                returnUrl = returnPath,
-                key = key,
-                value = validValue,
-                format = ""
-            ).execute()
-
-            val body: String? = response.body()?.string()
-
-            if (Regex("captcha").containsMatchIn(body ?: "")) {
-                YandexImagesApi.instance.sendYandexCaptchaForHtml(
-                    host = host,
-                    returnUrl = returnPath,
-                    key = key,
-                    value = validValue,
-                    format = "json"
-                ).execute().body()?.string().let {
-                    val yaCaptcha = Gson().fromJson(it, YandexResponse::class.java).captcha
-                    if (yaCaptcha != null) {
-                        key = yaCaptcha.key
-                        img_url = yaCaptcha.img_url
-                        status = yaCaptcha.status
+            sendCaptcha(value, getJson = false)?.let { stringBody ->
+                if (stringBody.contains("captcha")) {  // TODO mapper from ResponseBody to Captcha
+                    sendCaptcha(value, getJson = true)?.let { captchaJson ->
+                        val yaCaptcha =
+                            Gson().fromJson(captchaJson, YandexResponse::class.java).captcha
+                        if (yaCaptcha != null) {
+                            key = yaCaptcha.key
+                            img_url = yaCaptcha.img_url
+                            status = yaCaptcha.status
+                        }
                     }
+                } else {
+                    result = stringBody
                 }
+            }
 
-                onResult(false, null)
-            } else {
-                onResult(response.isSuccessful, body)
+            withContext(Dispatchers.Main) {
+                onResult(result)
             }
         }
     }

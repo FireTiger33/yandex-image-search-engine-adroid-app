@@ -1,35 +1,74 @@
 package com.stacktivity.yandeximagesearchengine.util.image
 
 import java.nio.ByteBuffer
-import android.graphics.Bitmap
-import android.util.Log
 import pl.droidsonroids.gif.GifDrawable
+import pl.droidsonroids.gif.srcRect
 import java.io.File
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
-import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.saveBytesToFile
-import java.lang.NullPointerException
+import com.stacktivity.yandeximagesearchengine.util.CacheWorker
+import com.stacktivity.yandeximagesearchengine.util.Downloader
+import com.stacktivity.yandeximagesearchengine.util.Downloader.Observer
 
-open class BufferedImageLoader {
-    companion object {
-        val tag: String = BufferedImageLoader::class.java.simpleName
+/**
+ * Image loader implementation of the [BufferedImageProvider] interface.
+ * Used for downloading image and getting result in [ImageObserver]
+ *
+ * When image is uploaded again, result will be returned from device cache
+ *
+ * @see Downloader for more details about the download procedure
+ */
+class BufferedImageLoader : BufferedImageProvider<String> {
 
-        fun getImage(imageUrl: String,
-                     imageObserver: ImageObserver,
-                     cacheFile: File? = null
-        ) = CoroutineScope(Dispatchers.IO).launch {
-            cacheFile?.let {
-                if (resultFromCache(it, imageObserver)) {
-                    return@launch
-                }
-            }
-
-            val cachingObserver = getCachingObserver(imageObserver, cacheFile)
-
-            downloadImage(imageUrl, cachingObserver)
+    internal class CachingObserver(
+        private val imageObserver: Observer,
+        private val cacheFile: File
+    ): Observer {
+        override fun onSuccess(buffer: ByteBuffer, url: String) {
+            imageObserver.onSuccess(buffer, url)
+            CacheWorker.saveBytesToFile(buffer, cacheFile)
         }
 
-        suspend fun resultFromCache(
+        override fun onError(url: String) {
+            imageObserver.onError(url)
+        }
+    }
+
+    override fun getImage(
+        item: String,
+        imageObserver: ImageObserver,
+        previewImageObserver: BitmapObserver?,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val cacheFile = getCacheFile(item)
+            if (resultFromCache(cacheFile, imageObserver)) {
+                return@launch
+            }
+            val observer = ImageFactory(imageObserver)
+            val cachingObserver = CachingObserver(observer, cacheFile)
+
+            Downloader.downloadAsync(tag, item, cachingObserver)
+        }
+    }
+
+    override fun getCacheFile(item: String): File {
+        val fileName = item.hashCode().toString()
+        return CacheWorker.getFile(fileName)
+    }
+
+    companion object {
+        private val tag: String = BufferedImageLoader::class.java.simpleName
+
+        /**
+         * Used for loading image from cache and getting result in [ImageObserver]
+         *
+         * @return false if file does not exist or file is not image
+         *         and true if result will be provided to observer
+         */
+        internal suspend fun resultFromCache(
             cacheFile: File,
             imageObserver: ImageObserver
         ): Boolean {
@@ -51,10 +90,10 @@ open class BufferedImageLoader {
         }
 
         private suspend fun loadCachedGif(file: File, imageObserver: ImageObserver) {
-            val drawable = withContext(Dispatchers.IO) { GifDrawable(file) }
-            val imageSize = withContext(Dispatchers.IO) { BitmapUtils.getImageSize(file) }
+            val drawable = GifDrawable(file)
+            val size = drawable.srcRect
             withContext(Dispatchers.Main) {
-                imageObserver.onGifResult(drawable, imageSize.first, imageSize.second)
+                imageObserver.onGifResult(drawable, size.width(), size.height())
             }
         }
 
@@ -64,50 +103,6 @@ open class BufferedImageLoader {
                     imageObserver.onBitmapResult(bitmap)
                 }
             }
-        }
-
-        fun getCachingObserver(
-            imageObserver: ImageObserver,
-            cacheFile: File?
-        ): ImageDownloadHelper.ImageObserver {
-            return object : ImageDownloadHelper.ImageObserver() {
-
-                override fun onBitmapResult(bitmap: Bitmap?) {
-                    if (bitmap != null) {
-                        imageObserver.onBitmapResult(bitmap)
-                        if (cacheFile != null) {
-                            BitmapUtils.saveBitmapToFile(bitmap, cacheFile, onException =  {
-                                // TODO delete cache
-                            })
-                        }
-                    } else {
-                        imageObserver.onException(NullPointerException())
-                    }
-                }
-
-                override fun onGifResult(buffer: ByteBuffer) {
-                    val gifSize = BitmapUtils.getGifSize(buffer)
-                    imageObserver.onGifResult(GifDrawable(buffer), gifSize.first, gifSize.second)
-                    if (cacheFile != null) {
-                        CoroutineScope(SupervisorJob()).launch(Dispatchers.IO) {
-                            saveBytesToFile(buffer, cacheFile)
-                            Log.d(tag, "Gif save complete: ${cacheFile.name}")
-                        }
-                    }
-                }
-            }
-        }
-
-        private fun downloadImage(
-            imageUrl: String,
-            imageObserver: ImageDownloadHelper.ImageObserver
-        ) {
-            ImageDownloadHelper.getInstance().getImageAsync(
-                poolTag = tag,
-                url = imageUrl,
-                timeoutMs = 3000,
-                imageObserver = imageObserver
-            )
         }
     }
 }
