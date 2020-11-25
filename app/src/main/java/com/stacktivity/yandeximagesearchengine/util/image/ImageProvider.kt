@@ -6,7 +6,7 @@ interface ImageProvider<T> {
     fun getImage(
         item: T,
         imageObserver: ImageObserver,
-        previewImageObserver: ImageObserver? = null,
+        previewImageObserver: BitmapObserver? = null,
     )
 }
 
