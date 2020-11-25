@@ -7,6 +7,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.SimpleImageViewHolder
 import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
+import com.stacktivity.yandeximagesearchengine.util.sendImage
+import com.stacktivity.yandeximagesearchengine.util.showImage
 
 internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProvider<String>)
     : RecyclerView.Adapter<SimpleImageViewHolder>(), SimpleImageViewHolder.EventListener
@@ -46,6 +48,13 @@ internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProv
         val item = contentProvider!!.getItemOnPosition(position)
 
         holder.bind(item, imageLoader)
+        holder.itemView.setOnLongClickListener {
+            sendImage(imageLoader.getCacheFile(item), holder.itemView.context)
+            true
+        }
+        holder.itemView.setOnClickListener {
+            showImage(imageLoader.getCacheFile(item), holder.itemView.context)
+        }
     }
 
     override fun onImageLoadFailed(imageUrl: String) {
