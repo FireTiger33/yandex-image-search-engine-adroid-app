@@ -51,13 +51,13 @@ object YandexImagesApi {
                     private var cookies: ArrayList<Cookie> = arrayListOf()
 
                     override fun saveFromResponse(
-                        url: HttpUrl?,
-                        cookies: List<Cookie>?
+                        url: HttpUrl,
+                        cookies: List<Cookie>
                     ) {
-                        if (cookies != null) this.cookies.addAll(cookies)
+                        this.cookies.addAll(cookies)
                     }
 
-                    override fun loadForRequest(url: HttpUrl?): List<Cookie>? {
+                    override fun loadForRequest(url: HttpUrl): List<Cookie> {
                         return cookies
                     }
                 }
