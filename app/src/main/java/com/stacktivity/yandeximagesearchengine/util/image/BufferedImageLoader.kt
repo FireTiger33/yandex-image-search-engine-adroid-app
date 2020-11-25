@@ -9,9 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
+import com.stacktivity.yandeximagesearchengine.util.CacheWorker
 import com.stacktivity.yandeximagesearchengine.util.Downloader
 import com.stacktivity.yandeximagesearchengine.util.Downloader.Observer
-import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.saveBytesToFile
 
 /**
  * Image loader implementation of the [BufferedImageProvider] interface.
@@ -21,9 +21,7 @@ import com.stacktivity.yandeximagesearchengine.util.FileWorker.Companion.saveByt
  *
  * @see Downloader for more details about the download procedure
  */
-class BufferedImageLoader(
-    private val cacheDir: String
-) : BufferedImageProvider<String> {
+class BufferedImageLoader : BufferedImageProvider<String> {
 
     internal class CachingObserver(
         private val imageObserver: Observer,
@@ -31,7 +29,7 @@ class BufferedImageLoader(
     ): Observer {
         override fun onSuccess(buffer: ByteBuffer, url: String) {
             imageObserver.onSuccess(buffer, url)
-            saveBytesToFile(buffer, cacheFile)
+            CacheWorker.saveBytesToFile(buffer, cacheFile)
         }
 
         override fun onError(url: String) {
@@ -57,8 +55,8 @@ class BufferedImageLoader(
     }
 
     override fun getCacheFile(item: String): File {
-        val fileName = item.hashCode()
-        return File(cacheDir + File.separator + fileName)
+        val fileName = item.hashCode().toString()
+        return CacheWorker.getFile(fileName)
     }
 
     companion object {

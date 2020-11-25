@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
+import com.stacktivity.yandeximagesearchengine.util.CacheWorker
 import com.stacktivity.yandeximagesearchengine.util.ConcatIterator
 import com.stacktivity.yandeximagesearchengine.util.Downloader
 import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader.CachingObserver
@@ -24,7 +25,6 @@ import java.lang.Runnable
  * @see Downloader for more details about the download procedure
  */
 class BufferedImageItemLoader(
-    private val cacheDir: String,
     var priorityMaxImageWidth: Int? = null
 ) : BufferedImageProvider<ImageItem> {
 
@@ -47,8 +47,8 @@ class BufferedImageItemLoader(
     }
 
     override fun getCacheFile(item: ImageItem): File {
-        val fileName = item.thumb.hashCode()
-        return File(cacheDir + File.separator + fileName)
+        val fileName = item.thumb.hashCode().toString()
+        return CacheWorker.getFile(fileName)
     }
 
     private fun downloadImage(
@@ -58,8 +58,6 @@ class BufferedImageItemLoader(
     ) {
 
         val listener = object : Runnable {
-            private var i = -1
-
             private val localObserver = object : ImageObserver() {
                 override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
                     imageObserver.onGifResult(drawable, width, height)
