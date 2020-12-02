@@ -7,6 +7,7 @@ import android.view.View
 import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
+import com.stacktivity.yandeximagesearchengine.util.ViewUtils.calculateViewWidth
 import com.stacktivity.yandeximagesearchengine.util.image.ImageProvider
 import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
 import kotlinx.android.synthetic.main.simple_item_image_list.view.gifView

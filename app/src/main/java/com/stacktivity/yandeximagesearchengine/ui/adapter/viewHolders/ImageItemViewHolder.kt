@@ -14,6 +14,7 @@ import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
+import com.stacktivity.yandeximagesearchengine.util.ViewUtils.calculateViewHeight
 import com.stacktivity.yandeximagesearchengine.util.image.ImageProvider
 import com.stacktivity.yandeximagesearchengine.util.getString
 import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
