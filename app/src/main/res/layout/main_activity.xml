@@ -47,7 +47,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:queryHint="@string/hint_search"
-            android:showAsAction="always" />
+            android:showAsAction="always"
+            android:imeOptions="flagNoExtractUi" />
 
     </androidx.appcompat.widget.Toolbar>
 </RelativeLayout>

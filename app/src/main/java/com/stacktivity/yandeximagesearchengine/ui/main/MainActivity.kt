@@ -19,7 +19,7 @@ import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
 import com.stacktivity.yandeximagesearchengine.util.hideKeyboard
 import kotlinx.android.synthetic.main.main_activity.*
 
-const val KEY_QUERY = "query"
+private const val KEY_QUERY = "query"
 
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
@@ -42,21 +42,24 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private fun initUI(savedInstanceState: Bundle?) {
         val savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
         setupSearchView(
-            requestFocus = savedInstanceState == null,
-            savedQuery = savedQuery)
+            setFocus = savedInstanceState == null,
+            savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
+        )
         setupImageList()
         setupObservers()
     }
 
-    private fun setupSearchView(requestFocus: Boolean, savedQuery: String?) {
+    private fun setupSearchView(setFocus: Boolean, savedQuery: String?) {
         searchView = searchToolBar.findViewById(R.id.search)
         searchView.run {
             setQuery(savedQuery, false)
             setOnQueryTextListener(this@MainActivity)
             isFocusable = true
             isIconified = false
-            if (requestFocus) {
+            if (setFocus) {
                 requestFocusFromTouch()
+            } else {
+                clearFocus()
             }
         }
     }
@@ -79,7 +82,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
     private fun setupViewPool() {
         if (viewPool == null) {
-            Log.d("MainActivity", "initialize pool")
             viewPool = PrefetchRecycledViewPool(this).apply {
                 prepare()
             }
