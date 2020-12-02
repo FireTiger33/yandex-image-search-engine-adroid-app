@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.R
-import com.stacktivity.yandeximagesearchengine.ui.SettingsActivity
+import com.stacktivity.yandeximagesearchengine.ui.settings.SettingsActivity
 import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
 import com.stacktivity.yandeximagesearchengine.util.Constants
 import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
         viewModel.captchaEvent.observe(this, {
             it.getContentIfNotHandled()?.let { imageUrl ->
-                val dialog = CaptchaDialog(
+                val dialog = CaptchaDialog.getInstance(
                     imageUrl = imageUrl,
                     showFailedMsg = it.isRepeatEvent
                 ) { captchaValue ->

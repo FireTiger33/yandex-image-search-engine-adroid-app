@@ -14,14 +14,26 @@ import com.stacktivity.yandeximagesearchengine.util.image.ImageLoader
 import com.stacktivity.yandeximagesearchengine.util.shortToast
 import kotlinx.android.synthetic.main.captcha_dialog.*
 
-class CaptchaDialog(
-    private val imageUrl: String,
-    private val showFailedMsg: Boolean,
-    private val onEnterCaptcha: (captchaValue: String?) -> Unit
-) : DialogFragment() {
+class CaptchaDialog : DialogFragment() {
 
     companion object {
         val tag: String = CaptchaDialog::class.java.simpleName
+        private var INSTANCE: CaptchaDialog? = null
+        private var imageUrl: String = ""
+        private var showFailedMsg: Boolean = false
+        private var onEnterCaptcha: (captchaValue: String?) -> Unit = {}
+
+        fun getInstance(
+            imageUrl: String,
+            showFailedMsg: Boolean,
+            onEnterCaptcha: (captchaValue: String?) -> Unit
+        ): CaptchaDialog = INSTANCE
+            ?: CaptchaDialog().also {
+                this.imageUrl = imageUrl
+                this.showFailedMsg = showFailedMsg
+                this.onEnterCaptcha = onEnterCaptcha
+                INSTANCE = it
+            }
     }
 
     override fun onCreateView(
