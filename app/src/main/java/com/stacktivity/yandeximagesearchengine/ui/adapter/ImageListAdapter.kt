@@ -12,6 +12,7 @@ import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.providers.ImageItemsProvider
 import com.stacktivity.yandeximagesearchengine.providers.SubImagesProvider
+import com.stacktivity.yandeximagesearchengine.ui.dialog.ImageDialog
 import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
 import com.stacktivity.yandeximagesearchengine.ui.main.MainViewModel
@@ -19,6 +20,7 @@ import com.stacktivity.yandeximagesearchengine.util.getColor
 import com.stacktivity.yandeximagesearchengine.util.getString
 import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
 import com.stacktivity.yandeximagesearchengine.util.shortToast
+import java.lang.ref.WeakReference
 
 internal class ImageListAdapter(
     private val contentProvider: ImageItemsProvider,
@@ -31,9 +33,6 @@ internal class ImageListAdapter(
     private val selectedArray: SparseBooleanArray = SparseBooleanArray()
     private var parentView: WeakReference<ViewGroup>? = null
 
-    init {
-        setHasStableIds(true)
-    }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         parentView = WeakReference(recyclerView)
@@ -122,13 +121,18 @@ internal class ImageListAdapter(
         }
     }
 
-    private fun showOtherImages(vh: ImageItemViewHolder) {
-        if (subImagesProvider.getSubImagesCount(vh.itemNum) > 0) {
-            vh.innerRecyclerView.visibility = View.VISIBLE
-        } else {
-            toggleView(vh)
-            shortToast(R.string.other_images_not_found)
+    override fun onSelectResolutionButtonClicked(button: View, data: List<ImageData>) {
+        val imageSelectionMenu = PopupMenu(parentView!!.get()!!.context, button)
+        imageSelectionMenu.menu.clear()
+        data.forEach { item ->
+            imageSelectionMenu.menu.add(item.baseToString())
+                .setOnMenuItemClickListener {
+                    openImageDialog(item)
+                    true
+                }
         }
+        imageSelectionMenu.show()
+        MainViewModel.getInstance().showedMenu.value = imageSelectionMenu
     }
 
     fun onReloadData() {
@@ -146,11 +150,18 @@ internal class ImageListAdapter(
         val item = contentProvider.getItemOnPosition(positionVh)
         holder.maxImageWidth = maxImageWidth
         holder.bind(item)
-        holder.innerRecyclerView.adapter?.notifyDataSetChanged()
 
         val isExpanded = toggleView(holder, selectedArray.get(item.itemNum, false))
         if (isExpanded && subImagesProvider.getSubImagesCount(item.itemNum) > 0) {
             toggleView(holder, true)
         }
+    }
+
+    private fun openImageDialog(imageData: ImageData) {
+        parentView?.get()?.context?.let {
+            val dialog = ImageDialog.newInstance(imageData)
+            it as AppCompatActivity
+            dialog.show(it.supportFragmentManager, dialog.tag)
+        } ?: shortToast(R.string.unexpected_error)
     }
 }

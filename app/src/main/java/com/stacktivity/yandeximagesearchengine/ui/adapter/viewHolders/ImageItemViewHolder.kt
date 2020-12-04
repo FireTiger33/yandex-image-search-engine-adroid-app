@@ -36,6 +36,7 @@ internal class ImageItemViewHolder(
 
     interface EventListener {
         fun onLoadFailed(itemNum: Int, isVisible: Boolean)
+        fun onSelectResolutionButtonClicked(button: View, data: List<ImageData>)
     }
 
     private abstract class CustomImageObserver : ImageObserver() {
@@ -189,6 +190,10 @@ internal class ImageItemViewHolder(
     private fun bindButtons(data: ImageData) {
         itemView.btn_image_resolution.run {
             text = data.baseToString()
+
+            setOnClickListener {
+                eventListener.onSelectResolutionButtonClicked(it, item.dups)
+            }
         }
 
         itemView.link_source.setOnClickListener {

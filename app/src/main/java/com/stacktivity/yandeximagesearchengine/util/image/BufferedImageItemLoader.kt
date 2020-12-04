@@ -42,7 +42,7 @@ class BufferedImageItemLoader(
             val sortedIterator = getSortedIterator(item.dups)
 
             previewImageObserver?.let { downloadPreview(item.thumb.url, previewImageObserver) }
-            downloadImage(sortedIterator, imageObserver, getCacheFile(item))
+            downloadImage(item, sortedIterator, imageObserver, getCacheFile(item))
         }
     }
 
@@ -52,23 +52,30 @@ class BufferedImageItemLoader(
     }
 
     private fun downloadImage(
+        item: ImageItem,
         imageData: Iterator<ImageData>,
         imageObserver: ImageObserver,
         cacheFile: File
     ) {
 
         val listener = object : Runnable {
+            private lateinit var currentData: ImageData
+            private val dataToRemove: ArrayList<ImageData> = arrayListOf()
+
             private val localObserver = object : ImageObserver() {
                 override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
+                    item.dups.removeAll(dataToRemove)
                     imageObserver.onGifResult(drawable, width, height)
                 }
 
                 override fun onBitmapResult(bitmap: Bitmap) {
+                    item.dups.removeAll(dataToRemove)
                     imageObserver.onBitmapResult(bitmap)
                 }
 
                 override fun onException(e: Throwable) {
-                    Log.e(tag, "${e.message}")
+                    Log.e(tag, "${e}: ${e.message}")
+                    dataToRemove.add(currentData)
                     run()
                 }
 
@@ -77,6 +84,8 @@ class BufferedImageItemLoader(
             override fun run() {
                 if (imageData.hasNext()) {
                     imageData.next().let {
+                        currentData = it
+
                         val observer = CachingObserver(ImageFactoryWithSizeValidation(
                             localObserver,
                             it.width, it.height

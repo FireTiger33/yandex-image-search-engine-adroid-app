@@ -1,5 +1,7 @@
 package com.stacktivity.yandeximagesearchengine.data
 
+import android.os.Parcel
+import android.os.Parcelable
 import com.stacktivity.yandeximagesearchengine.data.model.Thumb
 
 /**
@@ -19,4 +21,39 @@ data class ImageData(
     val height: Int,
     val fileSizeInBytes: Int,
     val url: String
-)
+) : Parcelable {
+    constructor(parcel: Parcel) : this(
+        parcel.readInt(),
+        parcel.readInt(),
+        parcel.readInt(),
+        parcel.readString() ?: ""
+    )
+
+    fun baseToString(): String {
+        return String.format("%dx%d (%.2f Kb)",
+            width, height,
+            fileSizeInBytes.toFloat() / 1024
+        )
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeInt(width)
+        parcel.writeInt(height)
+        parcel.writeInt(fileSizeInBytes)
+        parcel.writeString(url)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<ImageData> {
+        override fun createFromParcel(parcel: Parcel): ImageData {
+            return ImageData(parcel)
+        }
+
+        override fun newArray(size: Int): Array<ImageData?> {
+            return arrayOfNulls(size)
+        }
+    }
+}

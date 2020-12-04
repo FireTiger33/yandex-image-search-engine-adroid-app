@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <Button
+        android:id="@+id/btn_send"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.33"
+        android:text="@string/action_send"
+        style="@style/DialogButton" />
+
+    <Button
+        android:id="@+id/btn_open"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.34"
+        android:text="@string/action_open_in_other_app"
+        style="@style/DialogButton" />
+
+    <!--<Button
+        android:id="@+id/btn_download"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.33"
+        android:text="@string/action_download"
+        style="@style/DialogButton" />-->
+
+</LinearLayout>
