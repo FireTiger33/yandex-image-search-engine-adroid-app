@@ -2,6 +2,7 @@ package com.stacktivity.yandeximagesearchengine.ui.main
 
 import android.os.Handler
 import android.os.Looper
+import androidx.appcompat.widget.PopupMenu
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -32,6 +33,8 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private val _captchaEvent = MutableLiveData<EventForResult<String, String>>()
     val captchaEvent: LiveData<EventForResult<String, String>>
         get() = _captchaEvent
+
+    val showedMenu = MutableLiveData<PopupMenu>()
 
     private var numLoadedPages: Int = 0
     private var currentQuery: String = ""

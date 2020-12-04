@@ -4,13 +4,17 @@ import android.util.SparseBooleanArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.widget.PopupMenu
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.providers.ImageItemsProvider
 import com.stacktivity.yandeximagesearchengine.providers.SubImagesProvider
 import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders.ImageItemViewHolder
+import com.stacktivity.yandeximagesearchengine.ui.main.MainViewModel
 import com.stacktivity.yandeximagesearchengine.util.getColor
 import com.stacktivity.yandeximagesearchengine.util.getString
 import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
@@ -25,9 +29,14 @@ internal class ImageListAdapter(
 ) : RecyclerView.Adapter<ImageItemViewHolder>(), ImageItemViewHolder.EventListener {
 
     private val selectedArray: SparseBooleanArray = SparseBooleanArray()
+    private var parentView: WeakReference<ViewGroup>? = null
 
     init {
         setHasStableIds(true)
+    }
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        parentView = WeakReference(recyclerView)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageItemViewHolder {
@@ -67,7 +76,7 @@ internal class ImageListAdapter(
                 subImagesProvider.loadSubImages(itemNum) { success, errorMsg ->
                     vh.hideAdditionalProgressBar()
                     if (success) {
-                        showOtherImages(vh)
+                        // todo animate show
                     } else {
                         shortToast(getString(R.string.images_load_failed) + errorMsg)
                         toggleView(vh, false)
@@ -94,8 +103,9 @@ internal class ImageListAdapter(
         selectedArray.put(itemNum, isClicked)
         if (isClicked) {
             vh.itemView.setBackgroundColor(
-                    getColor(vh.itemView.context, R.color.itemOnClickOutSideColor)
+                getColor(vh.itemView.context, R.color.itemOnClickOutSideColor)
             )
+            vh.innerRecyclerView.visibility = View.VISIBLE
         } else {
             vh.itemView.background = null
             vh.innerRecyclerView.visibility = View.GONE
@@ -139,8 +149,8 @@ internal class ImageListAdapter(
         holder.innerRecyclerView.adapter?.notifyDataSetChanged()
 
         val isExpanded = toggleView(holder, selectedArray.get(item.itemNum, false))
-        if (isExpanded) {
-            showOtherImages(holder)
+        if (isExpanded && subImagesProvider.getSubImagesCount(item.itemNum) > 0) {
+            toggleView(holder, true)
         }
     }
 }

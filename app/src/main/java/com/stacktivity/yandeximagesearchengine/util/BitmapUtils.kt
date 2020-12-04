@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.Log
+import com.stacktivity.yandeximagesearchengine.data.ColorPixel
 import kotlinx.coroutines.*
 import java.io.File
 import java.nio.ByteBuffer
@@ -13,6 +14,7 @@ class BitmapUtils {
 
     companion object {
         private val mScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val mComputingScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val tag = BitmapUtils::class.java.simpleName
 
         /**
@@ -118,7 +120,9 @@ class BitmapUtils {
             } catch (e: OutOfMemoryError) {
                 Log.e(tag, "OutOfMemory on get bitmap from file")
             } finally {
-                onResult(res)
+                withContext(Dispatchers.Main.immediate) {
+                    onResult(res)
+                }
             }
         }
 
@@ -199,6 +203,17 @@ class BitmapUtils {
                 }
             } else {
                 preResult
+            }
+        }
+
+
+        fun getDominantColors(image: Bitmap, n: Int, onResult: (List<ColorPixel>) -> Unit) {
+            mComputingScope.launch {
+                val res = DominantColorsFactory.getColorsUseKMeans(image, n)
+
+                withContext(Dispatchers.Main) {
+                    onResult(res)
+                }
             }
         }
     }

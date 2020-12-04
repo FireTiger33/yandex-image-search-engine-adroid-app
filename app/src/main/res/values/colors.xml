@@ -5,6 +5,7 @@
     <color name="colorAccent">#0295d9</color>
 
     <color name="backgroundColor">#FFFFFF</color>
+    <color name="inverseBackgroundColor">#19191A</color>
     <color name="itemOnClickOutSideColor">#E1E3E6</color>
     <color name="colorImagePreview">#D8D8D8</color>
 
@@ -13,5 +14,10 @@
     <color name="simple_image_list_background">#F6F6F6</color>
 
     <!-- Text colors -->
+    <color name="colorBlack">#19191A</color>
     <color name="color_error_msg_enter_captcha">#D32F2F</color>
+
+    <!-- Button colors -->
+    <color name="colorYellow">#FFCA28</color>
+    <color name="colorYellowPressed">#FFB300</color>
 </resources>

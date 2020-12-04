@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
+import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -24,6 +25,7 @@ private const val KEY_QUERY = "query"
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
+    private var showedMenu: PopupMenu? = null
 
     companion object {
         private var viewPool: PrefetchRecycledViewPool? = null
@@ -39,8 +41,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         initUI(savedInstanceState)
     }
 
+    override fun onStop() {
+        showedMenu?.dismiss()
+        super.onStop()
+    }
+
     private fun initUI(savedInstanceState: Bundle?) {
-        val savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
         setupSearchView(
             setFocus = savedInstanceState == null,
             savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
@@ -113,6 +119,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
                 dialog.show(supportFragmentManager.beginTransaction(), CaptchaDialog.tag)
             }
+        })
+
+        viewModel.showedMenu.observe(this, {  // TODO
+            showedMenu = it
         })
     }
 
