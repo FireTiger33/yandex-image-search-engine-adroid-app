@@ -13,101 +13,63 @@
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/cardview_inside_padding">
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="@dimen/cardview_outside_padding">
 
-            <FrameLayout
+            <include
                 android:id="@+id/image_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                layout="@layout/image_with_progress_bar" />
 
-                <pl.droidsonroids.gif.GifImageView
-                    android:id="@+id/gifView"
-                    android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:scaleType="fitCenter"
-                    android:src="@color/colorImagePreview" />
 
-                <ProgressBar
-                    android:id="@+id/image_load_progress_bar"
-                    style="?android:attr/progressBarStyleLarge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:visibility="gone"
-                    android:max="100"
-                    tools:visibility="visible" />
-
-            </FrameLayout>
-
-            <LinearLayout
+            <TextView
+                android:id="@+id/title"
+                style="@style/TextAppearance.MaterialComponents.Subtitle1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_below="@+id/image_container"
+                tools:text="ImageTitle" />
 
-                <TextView
-                    android:id="@+id/title"
-                    style="@style/TextAppearance.MaterialComponents.Subtitle1"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/cardview_padding_after_image"
-                    tools:text="ImageTitle" />
+            <Button
+                android:id="@+id/link_source"
+                android:layout_width="@dimen/card_button_height"
+                android:layout_height="@dimen/card_button_height"
+                android:layout_below="@+id/title"
+                android:layout_alignEnd="@+id/image_container"
+                android:layout_marginTop="@dimen/cardview_inside_padding"
+                android:background="@null"
+                android:drawableBottom="@drawable/ic_open_in_browser"
+                android:drawablePadding="@dimen/cardview_padding_after_image"
+                android:textColor="@color/colorBlack" />
 
-                <TextView
-                    android:id="@+id/image_resolution"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="@dimen/text_size_medium_priority_info"
-                    tools:text="2048Kb" />
-
-                <TextView
-                    android:id="@+id/image_size"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="@dimen/text_size_low_priority_info"
-                    tools:text="original size: 1920x1080" />
-
-                <TextView
-                    android:id="@+id/link"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:autoLink="web"
-                    android:ellipsize="end"
-                    android:linksClickable="true"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:text="@string/action_open_origin_image"
-                    tools:contextClickable="true"
-                    tools:text="http://yandex.ru" />
-
-                <TextView
-                    android:id="@+id/link_source"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:autoLink="web"
-                    android:ellipsize="end"
-                    android:linksClickable="true"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:text="@string/action_open_origin_image"
-                    tools:contextClickable="true"
-                    tools:text="http://yandex.ru" />
-
-            </LinearLayout>
+            <Button
+                android:id="@+id/btn_image_resolution"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/card_button_height"
+                android:layout_below="@+id/title"
+                android:layout_alignParentStart="true"
+                android:layout_marginTop="@dimen/cardview_inside_padding"
+                android:background="@drawable/button_shape_yellow"
+                android:drawableEnd="@drawable/ic_more"
+                android:drawablePadding="@dimen/cardview_padding_after_image"
+                android:padding="8dp"
+                android:textColor="@color/colorBlack"
+                tools:text="1920x1080 (200Kb)" />
 
             <ProgressBar
                 android:id="@+id/progress_bar"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_below="@+id/btn_image_resolution"
+                android:layout_marginTop="@dimen/cardview_inside_padding"
                 android:indeterminateOnly="true"
                 android:visibility="gone"
                 tools:visibility="visible" />
 
-        </LinearLayout>
+        </RelativeLayout>
 
     </androidx.cardview.widget.CardView>
 
@@ -121,4 +83,5 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         tools:listitem="@layout/simple_item_image_list"
         tools:visibility="visible" />
+
 </LinearLayout>

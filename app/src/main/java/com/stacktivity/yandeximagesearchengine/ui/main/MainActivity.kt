@@ -7,23 +7,25 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
+import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.R
-import com.stacktivity.yandeximagesearchengine.ui.SettingsActivity
+import com.stacktivity.yandeximagesearchengine.ui.settings.SettingsActivity
 import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
 import com.stacktivity.yandeximagesearchengine.util.Constants
 import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
 import com.stacktivity.yandeximagesearchengine.util.hideKeyboard
 import kotlinx.android.synthetic.main.main_activity.*
 
-const val KEY_QUERY = "query"
+private const val KEY_QUERY = "query"
 
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
+    private var showedMenu: PopupMenu? = null
 
     companion object {
         private var viewPool: PrefetchRecycledViewPool? = null
@@ -39,24 +41,31 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         initUI(savedInstanceState)
     }
 
+    override fun onStop() {
+        showedMenu?.dismiss()
+        super.onStop()
+    }
+
     private fun initUI(savedInstanceState: Bundle?) {
-        val savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
         setupSearchView(
-            requestFocus = savedInstanceState == null,
-            savedQuery = savedQuery)
+            setFocus = savedInstanceState == null,
+            savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
+        )
         setupImageList()
         setupObservers()
     }
 
-    private fun setupSearchView(requestFocus: Boolean, savedQuery: String?) {
+    private fun setupSearchView(setFocus: Boolean, savedQuery: String?) {
         searchView = searchToolBar.findViewById(R.id.search)
         searchView.run {
             setQuery(savedQuery, false)
             setOnQueryTextListener(this@MainActivity)
             isFocusable = true
             isIconified = false
-            if (requestFocus) {
+            if (setFocus) {
                 requestFocusFromTouch()
+            } else {
+                clearFocus()
             }
         }
     }
@@ -79,7 +88,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
     private fun setupViewPool() {
         if (viewPool == null) {
-            Log.d("MainActivity", "initialize pool")
             viewPool = PrefetchRecycledViewPool(this).apply {
                 prepare()
             }
@@ -102,7 +110,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
         viewModel.captchaEvent.observe(this, {
             it.getContentIfNotHandled()?.let { imageUrl ->
-                val dialog = CaptchaDialog(
+                val dialog = CaptchaDialog.getInstance(
                     imageUrl = imageUrl,
                     showFailedMsg = it.isRepeatEvent
                 ) { captchaValue ->
@@ -111,6 +119,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
                 dialog.show(supportFragmentManager.beginTransaction(), CaptchaDialog.tag)
             }
+        })
+
+        viewModel.showedMenu.observe(this, {  // TODO
+            showedMenu = it
         })
     }
 
