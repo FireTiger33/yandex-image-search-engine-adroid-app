@@ -67,6 +67,35 @@ class BitmapUtils {
         }
 
         /**
+         * Used to determine the format of an image by its header
+         * Recognizes formats such as GIF, Jpeg, PNG and BMP
+         *
+         * @param header - image header (min size is 10) or full image in [CharArray]
+         * @return .{image file format} or empty string if unknown format
+         */
+        fun getImageFormat(header: CharArray) = when {
+            header.concatToString(0, 3) == "GIF" -> ".gif"
+            header.concatToString(1, 4) == "PNG" -> ".png"
+            header.concatToString(6, 10) == "JFIF" -> ".jpg"
+            header.concatToString(0, 2) == "BM" -> ".bmp"
+            else -> "".also { Log.e(tag, "unknown image format ${header.contentToString()}") }
+        }
+
+
+        /**
+         * Used to determine the image format by [file] header
+         * Recognizes formats such as GIF, Jpeg, PNG, and BMP
+         *
+         * @param file - image file
+         * @return image filename extension or empty string
+         */
+        fun getImageFormat(file: File): String {
+            val headerBuff = CharArray(10)
+            file.reader().read(headerBuff, 0, 10)
+            return getImageFormat(headerBuff)
+        }
+
+        /**
          * Simplifies Bitmap to desired resolution
          */
         suspend fun getSimplifiedBitmap(
@@ -111,25 +140,25 @@ class BitmapUtils {
             }
         }
 
-        fun getBitmapFromFile(imageFile: File, onResult: suspend (Bitmap?) -> Unit)
-                = mScope.launch {
-            var res: Bitmap? = null
-            Log.d(tag, "getBitmapFromFile thread: ${Thread.currentThread().name}")
-            try {
-                res = BitmapFactory.decodeFile(imageFile.path, null)
-            } catch (e: OutOfMemoryError) {
-                Log.e(tag, "OutOfMemory on get bitmap from file")
-            } finally {
-                withContext(Dispatchers.Main.immediate) {
-                    onResult(res)
+        fun getBitmapFromFile(imageFile: File, onResult: suspend (Bitmap?) -> Unit) =
+            mScope.launch {
+                var res: Bitmap? = null
+                Log.d(tag, "getBitmapFromFile thread: ${Thread.currentThread().name}")  // TODO remove
+                try {
+                    res = BitmapFactory.decodeFile(imageFile.path, null)
+                } catch (e: OutOfMemoryError) {
+                    Log.e(tag, "OutOfMemory on get bitmap from file")
+                } finally {
+                    withContext(Dispatchers.Main.immediate) {
+                        onResult(res)
+                    }
                 }
             }
-        }
 
         private fun calculateInSampleSize(
-                options: BitmapFactory.Options,
-                reqWidth: Int,
-                reqHeight: Int
+            options: BitmapFactory.Options,
+            reqWidth: Int,
+            reqHeight: Int
         ): Int {
             val height = options.outHeight
             val width = options.outWidth

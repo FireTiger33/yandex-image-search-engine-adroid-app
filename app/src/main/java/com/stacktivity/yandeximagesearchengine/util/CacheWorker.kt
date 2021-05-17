@@ -61,6 +61,20 @@ object CacheWorker {
     }
 
     /**
+     * Used to get a file with an explicitly specified extension.
+     * If the resulting file already exists, returns it,
+     * otherwise a new file will be created.
+     */
+    fun getFileWithExtension(file: File, filenameExtension: String): File {
+        val tempFile = File(file.path + filenameExtension)
+        if (!tempFile.exists()) {
+            saveBytesToFile(file.readBytes(), tempFile)
+        }
+
+        return tempFile
+    }
+
+    /**
      * Deletes oldest files in cache until [byteCount] are cleared
      */
     fun clearCache(byteCount: Long): Boolean {
@@ -83,4 +97,10 @@ object CacheWorker {
             file.delete()
         }
     }
+
+    /*@ExperimentalStdlibApi
+    private fun getCorrectFilenameExtension(raw: String): String {
+        val prefix = if (raw.startsWith('.')) "." else ""
+        return prefix + raw.lowercase()
+    }*/
 }
