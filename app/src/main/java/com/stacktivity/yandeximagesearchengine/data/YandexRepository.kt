@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
 import com.stacktivity.yandeximagesearchengine.data.model.api.YandexImagesApi
 import com.stacktivity.yandeximagesearchengine.R.string
+import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 import com.stacktivity.yandeximagesearchengine.util.getString
 import okhttp3.ResponseBody
 import retrofit2.Call
@@ -70,8 +71,9 @@ class YandexRepository {
                 }
 
                 override fun onFailure(call: Call<YandexResponse>?, t: Throwable?) {
-                    // TODO create networkListener and enqueue when Internet access is available
-                    onResult(false, null)
+                    NetworkStateReceiver.getInstance().post {
+                        getImageData(query, page, eventListener, onResult)
+                    }
                 }
             })
     }
