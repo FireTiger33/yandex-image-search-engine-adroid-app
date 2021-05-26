@@ -53,7 +53,9 @@ internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProv
             true
         }
         holder.itemView.setOnClickListener {
-            showImage(imageLoader.getCacheFile(item), holder.itemView.context)
+            imageLoader.getCacheFile(item).let {
+                if (it.exists()) showImage(it, holder.itemView.context)
+            }
         }
     }
 

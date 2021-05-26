@@ -122,8 +122,11 @@ internal class ImageListAdapter(
     }
 
     override fun onSelectResolutionButtonClicked(button: View, data: List<ImageData>) {
-        val imageSelectionMenu = PopupMenu(parentView!!.get()!!.context, button)
-        imageSelectionMenu.menu.clear()
+        val imageSelectionMenu = PopupMenu(parentView!!.get()!!.context, button).apply {
+            menu.clear()
+            setOnDismissListener { button.isEnabled = true }
+        }
+        button.isEnabled = false
         data.forEach { item ->
             imageSelectionMenu.menu.add(item.baseToString())
                 .setOnMenuItemClickListener {
