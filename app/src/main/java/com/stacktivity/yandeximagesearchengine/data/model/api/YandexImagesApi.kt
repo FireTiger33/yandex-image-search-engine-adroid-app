@@ -3,7 +3,6 @@ package com.stacktivity.yandeximagesearchengine.data.model.api
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.stacktivity.yandeximagesearchengine.BuildConfig.DEBUG
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.BASE_YANDEX_URL
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.REQUEST_READ_TIMEOUT_DURATION
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.REQUEST_TIMEOUT_DURATION
@@ -13,7 +12,6 @@ import okhttp3.OkHttpClient
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.Cookie
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
@@ -66,11 +64,6 @@ object YandexImagesApi {
             .readTimeout(REQUEST_READ_TIMEOUT_DURATION.toLong(), TimeUnit.SECONDS)
             .writeTimeout(REQUEST_TIMEOUT_DURATION.toLong(), TimeUnit.SECONDS)
             .eventListener(eventListener)
-
-        if (DEBUG) {
-            clientBuilder
-                .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
-        }
 
         return clientBuilder.build()
     }
