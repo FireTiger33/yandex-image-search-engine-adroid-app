@@ -29,9 +29,8 @@ data class ColorPixel(
     /**
      * Darkens a color by a given factor.
      *
-     * @param color to darken
-     * @param factor to darken the color.
-     * @return darker version of specified color.
+     * @param factor - factor to darken the color
+     * @return darker version of specified color
      */
     fun dark(@FloatRange(from = 0.0, to = 1.0) factor: Float): ColorPixel {
         return this * factor
@@ -39,9 +38,9 @@ data class ColorPixel(
 
     companion object {
         fun from(color: Int): ColorPixel {
-            val r = (color shr 16).toInt() and 0xff
-            val g = (color shr 8).toInt() and 0xff
-            val b = color.toInt() and 0xff
+            val r = (color shr 16) and 0xff
+            val g = (color shr 8) and 0xff
+            val b = color and 0xff
 
             return ColorPixel(r, g, b)
         }
