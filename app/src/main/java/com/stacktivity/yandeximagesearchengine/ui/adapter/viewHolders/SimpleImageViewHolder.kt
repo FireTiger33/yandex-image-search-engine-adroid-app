@@ -1,9 +1,8 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter.viewHolders
 
 import android.graphics.Bitmap
-import android.graphics.Color
-import android.util.Log
 import android.view.View
+import com.stacktivity.yandeximagesearchengine.R.drawable.ic_launcher_background
 import com.stacktivity.yandeximagesearchengine.base.BaseImageViewHolder
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_HEIGHT
 import com.stacktivity.yandeximagesearchengine.util.Constants.Companion.MIN_IMAGE_WIDTH
@@ -21,14 +20,13 @@ internal class SimpleImageViewHolder(
     private val viewHeight = itemView.gifView.layoutParams.height
     private var imageObserver: CustomImageObserver? = null
 
-    private abstract class CustomImageObserver(val myUrl: String) : ImageObserver() {
+    private abstract class CustomImageObserver(val myUrl: String) : ImageObserver {
         var requiredToShow = true
     }
 
     fun bind(imageUrl: String, imageProvider: ImageProvider<String>) {
         reset()
 
-        // val imageBitmap = BitmapUtils.getSimplifiedBitmap(cacheFile.path, reqHeight = viewHeight)
         imageObserver = getImageObserver(imageUrl)
         imageProvider.getImage(imageUrl, imageObserver!!)
     }
@@ -41,10 +39,8 @@ internal class SimpleImageViewHolder(
     private fun prepareImageView(bitmapWidth: Int, bitmapHeight: Int) {
         val calcWidth = calculateViewWidth(viewHeight, bitmapWidth, bitmapHeight)
         itemView.gifView.apply {
-            Log.d(this@SimpleImageViewHolder.tag, "calculated imageView width = $calcWidth")
             layoutParams.width = calcWidth
-            refreshDrawableState()
-            setColorFilter(Color.DKGRAY)
+            setImageResource(ic_launcher_background)
             requestLayout()
         }
     }
