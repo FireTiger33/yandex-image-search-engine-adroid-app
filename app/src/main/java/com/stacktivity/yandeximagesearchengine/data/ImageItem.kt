@@ -16,11 +16,22 @@ data class ImageItem(
     var colorSpace: List<ColorPixel>? = null
 )
 
+
+/**
+ * @param width             - image width
+ * @param height            - image height
+ * @param fileSizeInBytes   - image size
+ * @param url               - link to the image
+ * @param loadState         - download status
+ *
+ * @see [LoadState]
+ */
 data class ImageData(
     val width: Int,
     val height: Int,
     val fileSizeInBytes: Int,
-    val url: String
+    val url: String,
+    var loadState: LoadState = LoadState.None
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readInt(),
@@ -56,4 +67,21 @@ data class ImageData(
             return arrayOfNulls(size)
         }
     }
+}
+
+
+/**
+ * [None]         - state is not defined
+ * [Loaded]       - indicates that file was downloaded successfully
+ * [NotAvailable] - indicates that file can't be loaded because it was probably deleted,
+ *                  access requires auth on corresponding resource
+ *                  or their was timeout when connection
+ * [Unreachable]  - indicates that an external connection via
+ *                  Proxy or VPN is required to access this image
+ */
+enum class LoadState {
+    None,
+    Loaded,
+    NotAvailable,
+    Unreachable
 }
