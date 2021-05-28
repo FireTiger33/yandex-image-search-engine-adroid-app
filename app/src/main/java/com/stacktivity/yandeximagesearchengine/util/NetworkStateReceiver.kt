@@ -19,7 +19,7 @@ import kotlin.coroutines.suspendCoroutine
  * NetworkStateReceiver v1.1
  * Kotlin Author: Larin Grigoriy <https://github.com/FireTiger33>
  * created March 22, 2020
- * last updated November 30, 2020
+ * last updated May 17, 2021
  *
  * This class was created to work with Internet request queues.
  * It allows you to optimize download of by placing priority on the most recent requests.
@@ -46,8 +46,11 @@ import kotlin.coroutines.suspendCoroutine
 class NetworkStateReceiver private constructor(context: Context) {
 
     // test host for checking Internet connection
-    var testHost get() = NetworkStateChecker.testHost
-        set(value) { NetworkStateChecker.testHost = value }
+    var testHost
+        get() = NetworkStateChecker.testHost
+        set(value) {
+            NetworkStateChecker.testHost = value
+        }
 
     var networkIsConnected: Boolean = false
         private set
@@ -68,9 +71,10 @@ class NetworkStateReceiver private constructor(context: Context) {
             internal set
         var isRunning = false
             internal set
+
         abstract fun onNetworkIsConnected(onSuccess: () -> Unit)
-        open fun onNetworkIsDisconnected() { }
-        open fun onCancel() { }
+        open fun onNetworkIsDisconnected() {}
+        open fun onCancel() {}
     }
 
     companion object {
@@ -78,9 +82,9 @@ class NetworkStateReceiver private constructor(context: Context) {
         private var INSTANCE: NetworkStateReceiver? = null
 
         fun register(context: Context) = INSTANCE
-                ?: NetworkStateReceiver(context).also {
-                    INSTANCE = it
-                }
+            ?: NetworkStateReceiver(context).also {
+                INSTANCE = it
+            }
 
         fun getInstance(): NetworkStateReceiver {
             return INSTANCE ?: throw NullPointerException("Receiver is not registered")
@@ -104,7 +108,7 @@ class NetworkStateReceiver private constructor(context: Context) {
                 networkCheckScope.launch {
                     while (true) {
                         getInstance().applyNetworkStatus(networkAccessAvailable())
-                        delay(3000)
+                        delay(5000)
                     }
                 }
             }
@@ -123,7 +127,7 @@ class NetworkStateReceiver private constructor(context: Context) {
         private suspend fun connectToTestHostAsync() = coroutineScope {
             async(Dispatchers.IO) {
                 URL(testHost).openConnection().apply {
-                    connectTimeout = 3000
+                    connectTimeout = 5000
                     readTimeout = 1000
                 }.connect()
             }
@@ -198,13 +202,18 @@ class NetworkStateReceiver private constructor(context: Context) {
     }
 
     fun removeListener(listener: NetworkListener) {
-        if (networkListeners.containsKey(listener.poolTag)) {
-            if (listener.isRunning) {
-                listener.onCancel()
-                runningNetworkListeners[listener.poolTag]!!.remove(listener)
-            } else {
-                networkListeners[listener.poolTag]!!.remove(listener)
-            }
+        if (listener.isRunning) {
+            listener.onCancel()
+            runningNetworkListeners[listener.poolTag]!!.remove(listener)
+        } else {
+            networkListeners[listener.poolTag]!!.remove(listener)
+        }
+    }
+
+    fun increaseTaskPriority(listener: NetworkListener) {
+        if (!listener.isRunning) {
+            if (networkListeners[listener.poolTag]?.remove(listener) == true)
+                addListener(listener.poolTag, listener)
         }
     }
 
@@ -308,14 +317,12 @@ class NetworkStateReceiver private constructor(context: Context) {
             override fun onUnavailable() {
                 NetworkStateChecker.stop()
                 applyNetworkStatus(false)
-                // TODO notify that Internet is not expected and show reload btn
             }
 
             override fun onBlockedStatusChanged(network: Network, blocked: Boolean) {
                 applyNetworkStatus(!blocked)
                 if (blocked) NetworkStateChecker.stop()
                 else NetworkStateChecker.start()
-                // todo notify
             }
         }
     }

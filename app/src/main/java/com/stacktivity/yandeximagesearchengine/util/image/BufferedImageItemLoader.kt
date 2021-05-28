@@ -1,17 +1,13 @@
 package com.stacktivity.yandeximagesearchengine.util.image
 
 import android.graphics.Bitmap
-import android.util.Log
 import com.stacktivity.yandeximagesearchengine.data.ImageData
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
-import com.stacktivity.yandeximagesearchengine.util.CacheWorker
+import com.stacktivity.yandeximagesearchengine.data.LoadState
 import com.stacktivity.yandeximagesearchengine.util.ConcatIterator
-import com.stacktivity.yandeximagesearchengine.util.Downloader
-import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader.CachingObserver
-import kotlinx.coroutines.*
+import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver.NetworkListener
+import com.stacktivity.yandeximagesearchengine.util.getImage
 import pl.droidsonroids.gif.GifDrawable
-import java.io.File
-import java.lang.Runnable
 
 /**
  * [ImageItem] loader implementation of the [BufferedImageProvider] interface.
@@ -21,102 +17,87 @@ import java.lang.Runnable
  * When image is uploaded again, result will be returned from device cache
  *
  * @param priorityMaxImageWidth determines size of most appropriate image
- *
- * @see Downloader for more details about the download procedure
  */
 class BufferedImageItemLoader(
     var priorityMaxImageWidth: Int? = null
-) : BufferedImageProvider<ImageItem> {
+) : ImageProvider<ImageItem> {
+
+    private class ImageItemDownloader(
+        itemNum: Int,
+        val iterator: Iterator<ImageData>,
+        observer: ImageObserver,
+    ) : AbstractBufferedSmartImageDownloader(itemNum, tag, observer) {
+        private lateinit var currentDataLoader: ImageDataDownloader
+
+        override fun onBitmapResult(bitmap: Bitmap) =
+            currentDataLoader.onBitmapResult(bitmap)
+
+        override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) =
+            currentDataLoader.onGifResult(drawable, width, height)
+
+        override fun onException(e: Throwable) {
+            currentDataLoader.applyExceptionStatus(e)
+
+            if (iterator.hasNext()) {
+                task = downloadNext()
+            } else {
+                super.onException(e)
+            }
+        }
+
+        override fun onStartDownload(): NetworkListener = downloadNext()
+
+        fun downloadNext() = iterator.next().let {
+            currentDataLoader = ImageDataDownloader(it, tag, imageObserver)
+            return@let downloadAsync(
+                imageFactory = ImageFactoryWithSizeValidation(this, it.width, it.height),
+                url = it.url
+            )
+        }
+
+        companion object {
+            fun removeAllTasksByPoolTag(poolTag: String) {
+                SmartImageDownloader.removeAllTasksByPoolTag(poolTag)
+            }
+        }
+    }
 
     override fun getImage(
         item: ImageItem,
         imageObserver: ImageObserver,
         previewImageObserver: BitmapObserver?,
     ) {
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-            val cacheFile = getCacheFile(item)
-            if (resultFromCache(cacheFile, imageObserver)) {
-                return@launch
-            }
+        val sortedIterator: Iterator<ImageData> by lazy { getSortedIterator(item.dups) }
+        val loadedImages = item.dups.filter { it.loadState == LoadState.Loaded }
 
-            val sortedIterator = getSortedIterator(item.dups)
-
-            previewImageObserver?.let { downloadPreview(item.thumb.url, previewImageObserver) }
-            downloadImage(item, sortedIterator, imageObserver, getCacheFile(item))
-        }
-    }
-
-    override fun getCacheFile(item: ImageItem): File {
-        val fileName = item.thumb.hashCode().toString()
-        return CacheWorker.getFile(fileName)
-    }
-
-    private fun downloadImage(
-        item: ImageItem,
-        imageData: Iterator<ImageData>,
-        imageObserver: ImageObserver,
-        cacheFile: File
-    ) {
-
-        val listener = object : Runnable {
-            private lateinit var currentData: ImageData
-            private val dataToRemove: ArrayList<ImageData> = arrayListOf()
-
-            private val localObserver = object : ImageObserver() {
-                override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
-                    item.dups.removeAll(dataToRemove)
-                    imageObserver.onGifResult(drawable, width, height)
-                }
-
-                override fun onBitmapResult(bitmap: Bitmap) {
-                    item.dups.removeAll(dataToRemove)
-                    imageObserver.onBitmapResult(bitmap)
-                }
-
-                override fun onException(e: Throwable) {
-                    Log.e(tag, "${e}: ${e.message}")
-                    dataToRemove.add(currentData)
-                    run()
-                }
-
-            }
-
-            override fun run() {
-                if (imageData.hasNext()) {
-                    imageData.next().let {
-                        currentData = it
-
-                        val observer = CachingObserver(ImageFactoryWithSizeValidation(
-                            localObserver,
-                            it.width, it.height
-                        ),
-                            cacheFile
-                        )
-                        Downloader.downloadAsync(tag, it.url, observer/*, 3000*/)
-                    }
-                } else {
-                    imageObserver.onException(IndexOutOfBoundsException())
-                }
+        if (loadedImages.isNotEmpty()) {
+            val loadedImage = getSortedIterator(loadedImages).next()
+            val cacheFile = BufferedSmartImageDownloader.getCacheFile(loadedImage.url)
+            if (cacheFile.getImage(imageObserver)) {
+                return
             }
         }
 
-        listener.run()
+        previewImageObserver?.let {
+            val previewUrl = item.thumb.url
+            downloadPreview(previewUrl, it)
+        }
+
+        ImageItemDownloader(item.itemNum, sortedIterator, imageObserver)
+            .download()
     }
 
-    private suspend fun resultFromCache(
-        cacheFile: File,
-        imageObserver: ImageObserver
-    ): Boolean {
-        return BufferedImageLoader.resultFromCache(cacheFile, imageObserver)
+    fun removeAllTasks() {
+        ImageItemDownloader.removeAllTasksByPoolTag(tag)
+        SmartBitmapDownloader.removeAllTasksByPoolTag(tagThumb)
     }
 
     private fun downloadPreview(url: String, imageObserver: BitmapObserver) {
-        Downloader.downloadAsync(
-            poolTag = tag + "_thumb",
+        BufferedSmartBitmapDownloader(
+            poolTag = tagThumb,
             url = url,
-            observer = BitmapFactory(imageObserver),
-            timeoutMs = 2000,
-        )
+            observer = imageObserver,
+        ).download()
     }
 
     private fun getMaxAllowSizePreviewNum(images: List<ImageData>): Int {
@@ -151,7 +132,7 @@ class BufferedImageItemLoader(
             data.subList(0, imageNum + 1).asReversed().iterator()
         }
         if (imageNum + 1 < data.lastIndex) {
-            val secondIterator = data.subList(imageNum + 2, data.size).iterator()
+            val secondIterator = data.subList(imageNum + 2, data.lastIndex).iterator()
             sortedIterator = ConcatIterator(sortedIterator).plus(secondIterator)
         }
 
@@ -160,5 +141,6 @@ class BufferedImageItemLoader(
 
     companion object {
         private val tag: String = BufferedImageItemLoader::class.java.simpleName
+        private val tagThumb = "${tag}_thumb"
     }
 }

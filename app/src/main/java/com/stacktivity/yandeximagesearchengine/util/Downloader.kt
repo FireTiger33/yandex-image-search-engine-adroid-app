@@ -38,27 +38,43 @@ object Downloader {
         url: String,
         observer: Observer,
         timeoutMs: Long? = null
-    ) {
+    ): NetworkStateReceiver.NetworkListener {
         checkPool(poolTag)
 
+        val downloader = ByteArrayDownloader(url, timeoutMs) { buffer, error ->
+            setResult(observer, url, buffer, error)
+        }
         NetworkStateReceiver.getInstance().addListener(
-            poolTag,
-            ByteArrayDownloader(url, timeoutMs) { buffer ->
-                withContext(Dispatchers.Main) {
-                    buffer?.let {
-                        it.rewind()
-                        observer.onSuccess(buffer, url)
-                    } ?: run {
-                        observer.onError(url)
-                    }
-                }
-            }
+            poolTag, downloader
         )
+
+        return downloader
     }
 
     private fun checkPool(poolTag: String) {
         if (NetworkStateReceiver.getInstance().getListenersCountByTag(poolTag) == null) {
             NetworkStateReceiver.getInstance().addNewPoolListeners(poolTag, maxQueueCount)
+        }
+    }
+
+    fun increaseTaskPriority(
+        listener: NetworkStateReceiver.NetworkListener,
+    ) = NetworkStateReceiver.getInstance().increaseTaskPriority(listener)
+
+    fun stopAndDeleteTask(listener: NetworkStateReceiver.NetworkListener) =
+        NetworkStateReceiver.getInstance().removeListener(listener)
+
+    fun stopAndDeleteAllTasksByTag(tag: String) {
+        NetworkStateReceiver.getInstance().removeListenersPool(tag)
+    }
+
+    private suspend inline fun setResult(
+        observer: Observer, url: String, buffer: ByteArray?, error: Throwable?
+    ) = withContext(Dispatchers.Main) {
+        buffer?.let {
+            observer.onSuccess(buffer, url)
+        } ?: run {
+            observer.onError(url, error)
         }
     }
 }

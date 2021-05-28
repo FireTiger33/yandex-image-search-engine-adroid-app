@@ -78,10 +78,12 @@ data class ImageData(
  *                  or their was timeout when connection
  * [Unreachable]  - indicates that an external connection via
  *                  Proxy or VPN is required to access this image
+ * [Protected]    - protected from bots
  */
 enum class LoadState {
     None,
     Loaded,
     NotAvailable,
-    Unreachable
+    Unreachable,
+    Protected
 }
