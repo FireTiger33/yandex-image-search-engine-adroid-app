@@ -15,8 +15,8 @@ object Downloader {
     var maxQueueCount: Int = 4  // number of files loading simultaneously
 
     interface Observer {
-        fun onSuccess(buffer: ByteBuffer, url: String)
-        fun onError(url: String)
+        fun onSuccess(buffer: ByteArray, url: String)
+        fun onError(url: String, e: Throwable?)
     }
 
     /**

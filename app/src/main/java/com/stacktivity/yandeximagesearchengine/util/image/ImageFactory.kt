@@ -10,7 +10,6 @@ import kotlinx.coroutines.withContext
 import pl.droidsonroids.gif.GifDrawable
 import pl.droidsonroids.gif.srcRect
 import java.net.ConnectException
-import java.nio.ByteBuffer
 import kotlin.math.abs
 
 /**
@@ -20,7 +19,7 @@ import kotlin.math.abs
 open class BitmapFactory(
     val imageObserver: BitmapObserver,
 ) : Downloader.Observer {
-    override fun onSuccess(buffer: ByteBuffer, url: String) {
+    override fun onSuccess(buffer: ByteArray, url: String) {
         CoroutineScope(Dispatchers.Main).launch {
             withContext(Dispatchers.Default) {
                 BitmapUtils.getBitmap(buffer)
@@ -32,8 +31,8 @@ open class BitmapFactory(
         }
     }
 
-    override fun onError(url: String) {
-        imageObserver.onException(ConnectException("Load failed: $url"))
+    override fun onError(url: String, e: Throwable?) {
+        imageObserver.onException(e ?: ConnectException("Load failed: $url"))
     }
 }
 
@@ -44,7 +43,7 @@ open class BitmapFactory(
  * @see BitmapFactory for more details
  */
 class ImageFactory(imageObserver: ImageObserver) : BitmapFactory(imageObserver) {
-    override fun onSuccess(buffer: ByteBuffer, url: String) {
+    override fun onSuccess(buffer: ByteArray, url: String) {
         if (BitmapUtils.bufferIsAGif(buffer)) {
             imageObserver as ImageObserver
             GifDrawable(buffer).run {
@@ -65,10 +64,10 @@ class ImageFactory(imageObserver: ImageObserver) : BitmapFactory(imageObserver) 
  * [BitmapObserver.onException] passed [IllegalStateException]
  */
 open class BitmapFactoryWithSizeValidation(
-    val imageObserver: BitmapObserver,
+    imageObserver: BitmapObserver,
     private val expectedWidth: Int, private val expectedHeight: Int,
-) : Downloader.Observer {
-    override fun onSuccess(buffer: ByteBuffer, url: String) {
+) : BitmapFactory(imageObserver) {
+    override fun onSuccess(buffer: ByteArray, url: String) {
         CoroutineScope(Dispatchers.Main).launch {
             withContext(Dispatchers.Default) {
                 BitmapUtils.getBitmap(buffer)
@@ -76,16 +75,13 @@ open class BitmapFactoryWithSizeValidation(
                 if (correctSize(expectedWidth, expectedHeight, it.width, it.height)) {
                     imageObserver.onBitmapResult(it)
                 } else {
-                    imageObserver.onException(IllegalStateException("Image is invalid: $url"))
+                    imageObserver.onException(IllegalStateException("Image is invalid: $url," +
+                        "expected: ${expectedWidth}x$expectedHeight, real: ${it.width}x${it.height}"))
                 }
             } ?: run {
                 imageObserver.onException(FormatException("Is not an image: $url"))
             }
         }
-    }
-
-    override fun onError(url: String) {
-        imageObserver.onException(ConnectException("Load failed: $url"))
     }
 
     /**
@@ -115,7 +111,7 @@ class ImageFactoryWithSizeValidation(
     imageObserver: ImageObserver,
     expectedWidth: Int, expectedHeight: Int
 ) : BitmapFactoryWithSizeValidation(imageObserver, expectedWidth, expectedHeight) {
-    override fun onSuccess(buffer: ByteBuffer, url: String) {
+    override fun onSuccess(buffer: ByteArray, url: String) {
         if (BitmapUtils.bufferIsAGif(buffer)) {
             imageObserver as ImageObserver
             GifDrawable(buffer).run {

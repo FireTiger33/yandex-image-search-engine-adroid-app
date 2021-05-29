@@ -11,9 +11,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.lang.Exception
-import java.nio.ByteBuffer
-import java.nio.channels.Channels
-import java.security.cert.CertPathValidatorException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -28,8 +25,9 @@ import java.util.concurrent.TimeUnit
 class ByteArrayDownloader(
     private val url: String,
     private val timeoutMs: Long? = null,
-    private val onResult: suspend (byteBuffer: ByteBuffer?) -> Unit,
+    private val onResult: suspend (byteBuffer: ByteArray?, error: Throwable?) -> Unit,
 ) : NetworkStateReceiver.NetworkListener() {
+    private val mScope = CoroutineScope(Dispatchers.IO)
     private var job: Job? = null
 
     companion object {
@@ -55,14 +53,15 @@ class ByteArrayDownloader(
     }
 
     override fun onNetworkIsConnected(onSuccess: () -> Unit) {
-        job = CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            val buffer = try { download(/*url, timeoutMs*/) } catch (e: Exception) { null }
-            if (buffer != null && buffer.remaining() > 0) {
-                Log.d(tag, "download complete: $url")
-            } else {
-                Log.d(tag, "download failed: $url")
+        job = mScope.launch(SupervisorJob()) {
+            try {
+                val buffer = download()
+                onResult(buffer, null)
+            } catch (e: Exception) {
+                Log.d(tag, "${e.message}")
+                onResult(null, e)
             }
-            onResult(buffer)
+
             onSuccess()
         }
     }
@@ -86,12 +85,7 @@ class ByteArrayDownloader(
         }
     }
 
-    /**
-     * Asynchronous image loading using [OkHttpClient]
-     *
-     * @return [Job] for task managing
-     */
-    private suspend fun download(): ByteBuffer? = suspendCancellableCoroutine { cont ->
+    private suspend fun download(): ByteArray? = suspendCancellableCoroutine { cont ->
         val call = getOkHttpClientWithTimeout(timeoutMs)
             .newCall(
                 Request.Builder()
@@ -110,23 +104,21 @@ class ByteArrayDownloader(
             }
 
             override fun onResponse(call: Call, response: Response) {
-                var res: ByteBuffer? = null
-                response.body?.let { body ->
-                    val contentLength = body.contentLength().toInt()
-                    if (contentLength > 0) {
-                        body.byteStream().use {
-                            val buffer = ByteBuffer.allocateDirect(contentLength)
-                            Channels.newChannel(it).use { channel ->
-                                while (buffer.remaining() > 0) {
-                                    channel.read(buffer)
-                                }
-                            }
-                            buffer.rewind()
-                            res = buffer
+                if (!response.isSuccessful) {
+                    cont.resumeWith(Result.failure(HttpException(response)))
+                    return
+                }
+
+                mScope.launch {
+                    response.body()?.let { body ->
+                        try {
+                            val res = body.byteStream().readBytes()
+                            cont.resumeWith(Result.success(res))
+                        } catch (e: Exception) {
+                            cont.resumeWith(Result.failure(e))
                         }
                     }
                 }
-                cont.resumeWith(Result.success(res))
             }
         })
     }

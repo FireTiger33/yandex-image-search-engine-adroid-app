@@ -41,16 +41,14 @@ class BitmapUtils {
             return@withContext options.outMimeType == "image/gif"
         }
 
-        /**
-         * Checks whether the buffer contains a "GIF" header
-         */
-        fun bufferIsAGif(buffer: ByteBuffer): Boolean {
-            if (buffer.capacity() < 4) {
-                return false
-            }
-            val head = ByteArray(3)
-            buffer.get(head, 0, 3)
-            buffer.rewind()
+    /**
+     * Checks whether the buffer contains a "GIF" header
+     */
+    fun bufferIsAGif(buffer: ByteArray): Boolean {
+        if (buffer.size < 4) {
+            return false
+        }
+        val head = buffer.sliceArray(0..2)
 
             return head.toString(Charsets.UTF_8) == "GIF"
         }
@@ -200,23 +198,20 @@ class BitmapUtils {
             return overlay
         }
 
-        /**
-         * Use for getting [Bitmap] from [ByteBuffer]
-         * with ability to get a smaller image if needed.
-         * If you try to get a larger image, original image will be returned.
-         *
-         * If only one of required resolution parameters is set, image will change proportionally
-         *
-         * @param reqWidth  required width
-         * @param reqHeight required height
-         *
-         * @return The decoded bitmap, or null if the image could not be decoded
-         */
-        fun getBitmap(buffer: ByteBuffer, reqWidth: Int? = null, reqHeight: Int? = null): Bitmap? {
-            buffer.rewind()
-            val byteArray = ByteArray(buffer.remaining())
-            buffer.get(byteArray)
-            val preResult: Bitmap? = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+    /**
+     * Use for getting [Bitmap] from [ByteBuffer]
+     * with ability to get a smaller image if needed.
+     * If you try to get a larger image, original image will be returned.
+     *
+     * If only one of required resolution parameters is set, image will change proportionally
+     *
+     * @param reqWidth  required width
+     * @param reqHeight required height
+     *
+     * @return The decoded bitmap, or null if the image could not be decoded
+     */
+    fun getBitmap(byteArray: ByteArray, reqWidth: Int? = null, reqHeight: Int? = null): Bitmap? {
+        val preResult: Bitmap? = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
 
             return if (preResult != null && (reqWidth != null || reqHeight != null)) {
                 // Calc out image size
