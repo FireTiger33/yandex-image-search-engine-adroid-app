@@ -121,16 +121,16 @@ internal class ImageListAdapter(
         }
     }
 
-    override fun onSelectResolutionButtonClicked(button: View, data: List<ImageData>) {
+    override fun onSelectResolutionButtonClicked(button: View, imageItem: ImageItem) {
         val imageSelectionMenu = PopupMenu(parentView!!.get()!!.context, button).apply {
             menu.clear()
             setOnDismissListener { button.isEnabled = true }
         }
         button.isEnabled = false
-        data.forEach { item ->
+        imageItem.dups.forEach { item ->
             imageSelectionMenu.menu.add(item.baseToString())
                 .setOnMenuItemClickListener {
-                    openImageDialog(item)
+                    openImageDialog(item, imageItem.thumb.url)
                     true
                 }
         }
@@ -160,9 +160,9 @@ internal class ImageListAdapter(
         }
     }
 
-    private fun openImageDialog(imageData: ImageData) {
+    private fun openImageDialog(imageData: ImageData, thumbUrl: String? = null) {
         parentView?.get()?.context?.let {
-            val dialog = ImageDialog.newInstance(imageData)
+            val dialog = ImageDialog.newInstance(imageData, thumbUrl)
             it as AppCompatActivity
             dialog.show(it.supportFragmentManager, dialog.tag)
         } ?: shortToast(R.string.unexpected_error)

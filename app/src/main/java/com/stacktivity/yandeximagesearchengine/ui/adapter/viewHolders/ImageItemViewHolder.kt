@@ -36,7 +36,7 @@ internal class ImageItemViewHolder(
 
     interface EventListener {
         fun onLoadFailed(itemNum: Int, isVisible: Boolean)
-        fun onSelectResolutionButtonClicked(button: View, data: List<ImageData>)
+        fun onSelectResolutionButtonClicked(button: View, imageItem: ImageItem)
     }
 
     private abstract class CustomImageObserver : ImageObserver() {

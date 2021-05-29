@@ -10,84 +10,90 @@ import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
 import android.widget.LinearLayout.LayoutParams.MATCH_PARENT
-import com.stacktivity.yandeximagesearchengine.R.string.unexpected_error
+
 import com.stacktivity.yandeximagesearchengine.R.string.image_load_failed
 import com.stacktivity.yandeximagesearchengine.R.layout.image_dialog
 import com.stacktivity.yandeximagesearchengine.data.ImageData
+import com.stacktivity.yandeximagesearchengine.util.getString as getResString
+
 import com.stacktivity.yandeximagesearchengine.util.ViewUtils
-import com.stacktivity.yandeximagesearchengine.util.ViewUtils.calculateViewHeight
-import com.stacktivity.yandeximagesearchengine.util.ViewUtils.calculateViewWidth
-import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageLoader
 import com.stacktivity.yandeximagesearchengine.util.image.ImageObserver
+import com.stacktivity.yandeximagesearchengine.util.image.BitmapObserver
+import com.stacktivity.yandeximagesearchengine.util.image.ImageDataDownloader
+import com.stacktivity.yandeximagesearchengine.util.image.BufferedSmartBitmapDownloader
 import com.stacktivity.yandeximagesearchengine.util.sendImage
 import com.stacktivity.yandeximagesearchengine.util.shortToast
 import com.stacktivity.yandeximagesearchengine.util.showImage
+import com.stacktivity.yandeximagesearchengine.util.BitmapUtils.blur
+
+import com.tunjid.androidx.core.delegates.fragmentArgs
+
 import kotlinx.android.synthetic.main.image_action_buttons.view.*
 import kotlinx.android.synthetic.main.image_with_progress_bar.view.*
+
 import pl.droidsonroids.gif.GifDrawable
 import pl.droidsonroids.gif.GifImageView
+
 import java.lang.ref.WeakReference
 
 class ImageDialog : DialogFragment() {
-
-    private lateinit var mImageData: ImageData
-    private val imageLoader = BufferedImageLoader()
+    private var mImageData by fragmentArgs<ImageData>()
+    private var thumb by fragmentArgs<String?>()
+    private var previewIsNeeded = true
+    private var imageLoader: ImageDataDownloader? = null
 
     companion object {
-        private const val IMAGE_DATA_KEY = "imageData"
-        fun newInstance(imageData: ImageData): ImageDialog {
-            val args = Bundle()
-            val dialog = ImageDialog()
-            args.putParcelable(IMAGE_DATA_KEY, imageData)
-            dialog.arguments = args
-            return dialog
+        val mTag: String = ImageDialog::class.java.simpleName
+        fun newInstance(imageData: ImageData, thumbUrl: String? = null) = ImageDialog().apply {
+            this.mImageData = imageData
+            thumb = thumbUrl
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        arguments?.getParcelable<ImageData>(IMAGE_DATA_KEY)?.let {
-            mImageData = it
-        } ?: shortToast(unexpected_error)
-    }
-
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         val view = inflater.inflate(image_dialog, container, false)
 
         setClickListeners(view)
 
         view.post {
-            imageLoader.getImage(mImageData.url, getImageObserver(WeakReference(view.imageView)))
+            val viewRef = WeakReference(view.imageView)
+
+            // download image
+            imageLoader = ImageDataDownloader(mImageData, mTag, getImageObserver(viewRef))
+                .apply { download() }
+
+            // download preview
+            thumb?.let {
+                BufferedSmartBitmapDownloader(it, mTag, getPreviewImageObserver(viewRef))
+                    .download()
+            }
+
             showProgressBar()
-            disabledButtons()
+            enableButtons(false)
             prepareView(mImageData.width, mImageData.height)
         }
 
         return view
     }
 
-    private fun disabledButtons() {
-        requireView().apply {
-            this.btn_open.isEnabled = false
-            this.btn_send.isEnabled = false
-        }
-    }
-
-    private fun enableButtons() {
-        requireView().apply {
-            this.btn_open.isEnabled = true
-            this.btn_send.isEnabled = true
+    private fun enableButtons(enable: Boolean) {
+        view?.let {
+            it.btn_open.isEnabled = enable
+            it.btn_send.isEnabled = enable
         }
     }
 
     private fun setClickListeners(rootView: View) {
         rootView.btn_send.setOnClickListener {
-            sendImage(imageLoader.getCacheFile(mImageData.url), rootView.context)
+            sendImage(BufferedSmartBitmapDownloader.getCacheFile(mImageData.url), rootView.context)
         }
 
         rootView.btn_open.setOnClickListener {
-            showImage(imageLoader.getCacheFile(mImageData.url), rootView.context)
+            showImage(BufferedSmartBitmapDownloader.getCacheFile(mImageData.url), rootView.context)
         }
     }
 
@@ -103,10 +109,15 @@ class ImageDialog : DialogFragment() {
         }
     }
 
+    override fun onDestroy() {
+        imageLoader?.cancel()
+        super.onDestroy()
+    }
+
     private fun onImageLoadComplete(imageWidth: Int, imageHeight: Int) {
         prepareImageViewIfDifferentSize(imageWidth, imageHeight)
         hideProgressBar()
-        enableButtons()
+        enableButtons(true)
     }
 
     private fun prepareView(imageWidth: Int, imageHeight: Int) {
@@ -118,13 +129,15 @@ class ImageDialog : DialogFragment() {
                 val currentOrientation = context.resources.configuration.orientation
 
                 if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
-                    val calcWidth = calculateViewWidth(possibleImageHeight, imageWidth, imageHeight)
+                    val calcWidth =
+                        ViewUtils.calculateViewWidth(possibleImageHeight, imageWidth, imageHeight)
                     layoutParams.width = calcWidth
                     layoutParams.height = possibleImageHeight
                     val cropFactor = calcWidth / possibleImageWidth.toFloat()
                     setTextSize(it, cropFactor)
                 } else {
-                    val calcHeight = calculateViewHeight(possibleImageWidth, imageWidth, imageHeight)
+                    val calcHeight =
+                        ViewUtils.calculateViewHeight(possibleImageWidth, imageWidth, imageHeight)
                     layoutParams.height = calcHeight
                     layoutParams.width = possibleImageWidth
                 }
@@ -147,9 +160,20 @@ class ImageDialog : DialogFragment() {
         view?.image_load_progress_bar?.visibility = View.GONE
     }
 
+    private fun getPreviewImageObserver(imageView: WeakReference<GifImageView>): BitmapObserver {
+        return object : BitmapObserver {
+            override fun onBitmapResult(bitmap: Bitmap) {
+                if (previewIsNeeded) {
+                    imageView.get()?.setImageBitmap(blur(bitmap))
+                }
+            }
+        }
+    }
+
     private fun getImageObserver(imageView: WeakReference<GifImageView>): ImageObserver {
-        return object : ImageObserver() {
+        return object : ImageObserver {
             override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
+                previewIsNeeded = false
                 imageView.get()?.let {
                     onImageLoadComplete(width, height)
                     it.setImageDrawable(drawable)
@@ -157,6 +181,7 @@ class ImageDialog : DialogFragment() {
             }
 
             override fun onBitmapResult(bitmap: Bitmap) {
+                previewIsNeeded = false
                 imageView.get()?.let {
                     onImageLoadComplete(bitmap.width, bitmap.height)
                     if (bitmap.width <= it.width) {
@@ -170,7 +195,7 @@ class ImageDialog : DialogFragment() {
             }
 
             override fun onException(e: Throwable) {
-                shortToast(getString(image_load_failed).format(e.message))
+                shortToast(getResString(image_load_failed).format(e.message))
                 dismiss()
             }
 
