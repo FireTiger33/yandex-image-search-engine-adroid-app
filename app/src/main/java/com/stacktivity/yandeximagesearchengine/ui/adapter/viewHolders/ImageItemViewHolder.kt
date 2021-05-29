@@ -39,10 +39,8 @@ internal class ImageItemViewHolder(
         fun onSelectResolutionButtonClicked(button: View, imageItem: ImageItem)
     }
 
-    private abstract class CustomImageObserver : ImageObserver() {
+    private abstract class CustomImageObserver : ImageObserver {
         var requiredToShow = true
-        override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {}
-        override fun onException(e: Throwable) {}
     }
 
     companion object {
@@ -64,12 +62,10 @@ internal class ImageItemViewHolder(
         bindButtons(item.dups[0])
         showProgressBar()
 
-        previewImageObserver = getPreviewImageObserver()
-        imageObserver = getImageObserver()
         imageProvider.getImage(
             item = item,
-            previewImageObserver = previewImageObserver,
-            imageObserver = imageObserver!!
+            previewImageObserver = getPreviewImageObserver().also { previewImageObserver = it },
+            imageObserver = getImageObserver().also { imageObserver = it }
         )
     }
 
@@ -153,7 +149,7 @@ internal class ImageItemViewHolder(
         return object : CustomImageObserver() {
             override fun onBitmapResult(bitmap: Bitmap) {
                 if (item.colorSpace == null) {
-                    BitmapUtils.getDominantColors(bitmap, 2) {
+                    BitmapUtils.getDominantColors(bitmap, 3) {
                         val resColorSpace = it.filter(this@ImageItemViewHolder::filterUsedColors)
                         item.colorSpace = resColorSpace
                         bindButtonsColor()
@@ -192,7 +188,7 @@ internal class ImageItemViewHolder(
             text = data.baseToString()
 
             setOnClickListener {
-                eventListener.onSelectResolutionButtonClicked(it, item.dups)
+                eventListener.onSelectResolutionButtonClicked(it, item)
             }
         }
 
@@ -205,8 +201,6 @@ internal class ImageItemViewHolder(
     }
 
     private fun bindButtonsColor() {
-        Log.d("ImageItemViewHOlder", "bind colors: ${item.colorSpace}, ${item.colorSpace?.size ?: 0 < 1}")
-
         if (item.colorSpace == null || item.colorSpace?.size ?: 0 < 1) return
 
         val colors = item.colorSpace!!
@@ -220,6 +214,10 @@ internal class ImageItemViewHolder(
         }
     }
 
+    /**
+     * Filter is used to select a color of [item_image_list.xml/btn_image_resolution]
+     * that will not merge with the text color
+     */
     private fun filterUsedColors(colorPixel: ColorPixel): Boolean {
         val color1 = ColorPixel.from(getColor(color.backgroundColor))
         val color2 = ColorPixel.from(itemView.btn_image_resolution.textColors.defaultColor)

@@ -1,6 +1,5 @@
 package com.stacktivity.yandeximagesearchengine.ui.adapter
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -10,21 +9,18 @@ import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
 import com.stacktivity.yandeximagesearchengine.util.sendImage
 import com.stacktivity.yandeximagesearchengine.util.showImage
 
-internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProvider<String>)
-    : RecyclerView.Adapter<SimpleImageViewHolder>(), SimpleImageViewHolder.EventListener
-{
-
-    lateinit var eventListener: EventListener
+internal class SimpleImageListAdapter(
+    private val imageLoader: BufferedImageProvider<String>,
+    private var contentProvider: ContentProvider,
+    var eventListener: EventListener
+) : RecyclerView.Adapter<SimpleImageViewHolder>(), SimpleImageViewHolder.EventListener {
 
     interface EventListener {
         fun onImagesLoadFailed()
     }
 
-    private var contentProvider: ContentProvider? = null
-
-
     fun setNewContentProvider(contentProvider: ContentProvider) {
-        this.contentProvider = null
+        this.contentProvider = object : ContentProvider {}  // Fake content provider
         notifyDataSetChanged()
         this.contentProvider = contentProvider
         notifyDataSetChanged()
@@ -36,16 +32,10 @@ internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProv
         return SimpleImageViewHolder(view, this)
     }
 
-    override fun getItemCount(): Int {
-        if (contentProvider == null) {
-            Log.e("SimpleImageListAdapter", "Need to set contentProvider using [SimpleImageListAdapter#setContentProvider]")
-        }
-
-        return contentProvider?.getItemCount() ?: 0
-    }
+    override fun getItemCount(): Int = contentProvider.getItemCount()
 
     override fun onBindViewHolder(holder: SimpleImageViewHolder, position: Int) {
-        val item = contentProvider!!.getItemOnPosition(position)
+        val item = contentProvider.getItemOnPosition(position)
 
         holder.bind(item, imageLoader)
         holder.itemView.setOnLongClickListener {
@@ -60,28 +50,26 @@ internal class SimpleImageListAdapter(private val imageLoader: BufferedImageProv
     }
 
     override fun onImageLoadFailed(imageUrl: String) {
-        Log.i("SimpleImageListAdapter", "load failed: $imageUrl")
         deleteImageFromList(imageUrl)
     }
 
     override fun onSmallImage(imageUrl: String) {
-        Log.i("SimpleImageListAdapter", "image is too small: $imageUrl")
         deleteImageFromList(imageUrl)
     }
 
     private fun deleteImageFromList(imageUrl: String) {
-        val deletedItemIndex = contentProvider?.deleteItem(imageUrl)?: -1
+        val deletedItemIndex = contentProvider.deleteItem(imageUrl)
         if (deletedItemIndex > -1) {
             notifyItemRemoved(deletedItemIndex)
         }
-        if (contentProvider?.getItemCount()?: 0 < 1) {
+        if (contentProvider.getItemCount() < 1) {
             eventListener.onImagesLoadFailed()
         }
     }
 
     interface ContentProvider {
-        fun getItemCount(): Int
-        fun getItemOnPosition(position: Int): String
-        fun deleteItem(imageUrl: String): Int
+        fun getItemCount(): Int = 0
+        fun getItemOnPosition(position: Int): String = ""
+        fun deleteItem(imageUrl: String): Int = -1
     }
 }

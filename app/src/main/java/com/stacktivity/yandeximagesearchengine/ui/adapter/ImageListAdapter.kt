@@ -19,6 +19,7 @@ import com.stacktivity.yandeximagesearchengine.ui.main.MainViewModel
 import com.stacktivity.yandeximagesearchengine.util.getColor
 import com.stacktivity.yandeximagesearchengine.util.getString
 import com.stacktivity.yandeximagesearchengine.util.image.BufferedImageProvider
+import com.stacktivity.yandeximagesearchengine.util.image.ImageProvider
 import com.stacktivity.yandeximagesearchengine.util.shortToast
 import java.lang.ref.WeakReference
 
@@ -26,7 +27,7 @@ internal class ImageListAdapter(
     private val contentProvider: ImageItemsProvider,
     private val subImagesProvider: SubImagesProvider,
     private val imageLoader: BufferedImageProvider<String>,
-    private val imageItemLoader: BufferedImageProvider<ImageItem>,
+    private val imageItemLoader: ImageProvider<ImageItem>,
     private var maxImageWidth: Int
 ) : RecyclerView.Adapter<ImageItemViewHolder>(), ImageItemViewHolder.EventListener {
 
@@ -43,9 +44,8 @@ internal class ImageListAdapter(
         val view = inflater.inflate(R.layout.item_image_list, parent, false)
         val vh = ImageItemViewHolder(view, this, imageItemLoader)
         vh.innerRecyclerView.run {
-            adapter = SimpleImageListAdapter(imageLoader).apply {
-                setNewContentProvider(object :  // TODO
-                    SimpleImageListAdapter.ContentProvider {
+            adapter = SimpleImageListAdapter(imageLoader,
+                contentProvider = object : SimpleImageListAdapter.ContentProvider {
                     override fun getItemCount(): Int {
                         return subImagesProvider.getSubImagesCount(vh.itemNum)
                     }
@@ -57,14 +57,13 @@ internal class ImageListAdapter(
                     override fun deleteItem(imageUrl: String): Int {
                         return subImagesProvider.deleteSubImage(vh.itemNum, imageUrl)
                     }
-                })
-
+                },
                 eventListener = object : SimpleImageListAdapter.EventListener {
                     override fun onImagesLoadFailed() {
                         toggleView(vh, false)
                     }
                 }
-            }
+            )
         }
 
         vh.itemView.setOnClickListener {

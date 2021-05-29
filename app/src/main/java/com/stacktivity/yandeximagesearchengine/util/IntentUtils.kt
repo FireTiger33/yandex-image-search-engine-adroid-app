@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.stacktivity.yandeximagesearchengine.BuildConfig
-import com.stacktivity.yandeximagesearchengine.util.BitmapUtils.Companion.getImageFormat
+import com.stacktivity.yandeximagesearchengine.util.BitmapUtils.getImageFormat
 import java.io.File
 
 fun sendImage(imageFile: File, context: Context) {

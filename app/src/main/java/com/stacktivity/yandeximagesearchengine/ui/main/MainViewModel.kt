@@ -40,7 +40,7 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private var currentQuery: String = ""
     private var isLastPage = false
 
-    private val imageLoader = BufferedImageLoader()
+    private val imageLoader = BufferedImageLoader
     private val imageItemLoader = BufferedImageItemLoader()
 
     private var adapter: ImageListAdapter? = null
@@ -57,19 +57,18 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
         } else ImageListAdapter(
             MainContentProvider,
             MainContentProvider,
-            imageLoader, imageItemLoader,
+            imageLoader,
+            imageItemLoader.apply { priorityMaxImageWidth = maxImageWidth },
             maxImageWidth
-        ).also {
-            adapter = it
-            imageItemLoader.priorityMaxImageWidth = maxImageWidth
-        }
+        ).also { adapter = it }
     }
 
     fun fetchImagesOnQuery(query: String) {
         isLastPage = false
         numLoadedPages = 0
         currentQuery = query
-        NetworkStateReceiver.getInstance().removeAllListeners()
+        imageLoader.removeAllTasks()
+        imageItemLoader.removeAllTasks()
         fetchImagesOnNextPage()
     }
 
@@ -118,7 +117,7 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private fun onFetchComplete(imageBlock: Blocks, isNewQuery: Boolean, onSuccess: () -> Unit) {
         val html = imageBlock.html
         numLoadedPages++
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.Default).launch(Dispatchers.IO) {
             val itemList = YandexImageUtil.getImageItemListFromHtml(
                 html = html,
                 startIndexingItemsFromScratch = isNewQuery

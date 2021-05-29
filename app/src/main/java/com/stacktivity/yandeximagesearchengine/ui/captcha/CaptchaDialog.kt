@@ -12,28 +12,26 @@ import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.util.image.BitmapObserver
 import com.stacktivity.yandeximagesearchengine.util.image.ImageLoader
 import com.stacktivity.yandeximagesearchengine.util.shortToast
+import com.tunjid.androidx.core.delegates.fragmentArgs
 import kotlinx.android.synthetic.main.captcha_dialog.*
 
 class CaptchaDialog : DialogFragment() {
+    private var imageUrl by fragmentArgs<String>()
+    private var showFailedMsg by fragmentArgs<Boolean>()
+    private var onEnterCaptcha by fragmentArgs<(captchaValue: String?) -> Unit>()
 
     companion object {
-        val tag: String = CaptchaDialog::class.java.simpleName
-        private var INSTANCE: CaptchaDialog? = null
-        private var imageUrl: String = ""
-        private var showFailedMsg: Boolean = false
-        private var onEnterCaptcha: (captchaValue: String?) -> Unit = {}
+        val TAG: String = CaptchaDialog::class.java.simpleName
 
-        fun getInstance(
+        fun newInstance(
             imageUrl: String,
             showFailedMsg: Boolean,
             onEnterCaptcha: (captchaValue: String?) -> Unit
-        ): CaptchaDialog = INSTANCE
-            ?: CaptchaDialog().also {
-                this.imageUrl = imageUrl
-                this.showFailedMsg = showFailedMsg
-                this.onEnterCaptcha = onEnterCaptcha
-                INSTANCE = it
-            }
+        ) = CaptchaDialog().apply {
+            this.imageUrl = imageUrl
+            this.showFailedMsg = showFailedMsg
+            this.onEnterCaptcha = onEnterCaptcha
+        }
     }
 
     override fun onCreateView(
@@ -45,7 +43,7 @@ class CaptchaDialog : DialogFragment() {
     }
 
     private fun applyCaptchaImage(imageUrl: String) {
-        ImageLoader.getBitmap(imageUrl, object : BitmapObserver() {
+        ImageLoader.getBitmap(imageUrl, object : BitmapObserver {
             override fun onBitmapResult(bitmap: Bitmap) {
                 if (image_captcha != null) {
                     val cropFactor = image_captcha.width.toFloat() / bitmap.width
