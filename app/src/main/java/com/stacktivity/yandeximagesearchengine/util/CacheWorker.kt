@@ -4,6 +4,9 @@ import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
 import com.stacktivity.yandeximagesearchengine.App
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Used for safe operation with the application cache.
@@ -11,9 +14,22 @@ import com.stacktivity.yandeximagesearchengine.App
  */
 object CacheWorker {
     private val cacheDir: File = App.getInstance().cacheDir
+    private var tempFile: File? = null
 
     fun getFile(fileName: String): File {
         return File(cacheDir.path + File.separator + fileName)
+    }
+
+
+    /**
+     * Used to get a temp file that exists before this method is called again
+     */
+    fun getTempFile(): File {
+        tempFile?.delete()
+        val name = SimpleDateFormat("ddMMyy_HHmmss", Locale.getDefault()).format(Date())
+        return getFile(name)
+            .apply { createNewFile() }
+            .also { tempFile = it }
     }
 
     /**

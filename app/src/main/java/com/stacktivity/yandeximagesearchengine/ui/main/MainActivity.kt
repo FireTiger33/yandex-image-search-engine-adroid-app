@@ -1,12 +1,17 @@
 package com.stacktivity.yandeximagesearchengine.ui.main
 
+import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Point
-import android.view.View
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
+import android.view.View
 import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
+import android.webkit.URLUtil
 import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,10 +20,17 @@ import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledV
 import com.stacktivity.yandeximagesearchengine.R
 import com.stacktivity.yandeximagesearchengine.ui.settings.SettingsActivity
 import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
+import com.stacktivity.yandeximagesearchengine.util.shortToast
+import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
+import com.stacktivity.yandeximagesearchengine.util.CacheWorker
 import com.stacktivity.yandeximagesearchengine.util.Constants
+import com.stacktivity.yandeximagesearchengine.util.PickImage
+import com.stacktivity.yandeximagesearchengine.util.TakePictureToPrivateFile
 import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
-import com.stacktivity.yandeximagesearchengine.util.hideKeyboard
 import kotlinx.android.synthetic.main.main_activity.*
+import kotlinx.coroutines.*
+import java.io.File
+
 
 private const val KEY_QUERY = "query"
 
@@ -26,13 +38,26 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
     private var showedMenu: PopupMenu? = null
+    private lateinit var tempFile: File
+
+    private val photographer = registerForActivityResult(TakePictureToPrivateFile()) {
+        if (it) BitmapUtils.getSimplifiedBitmap(tempFile.path, 200, 200) { bitmap ->
+            if (bitmap != null) fetchImagesByBitmap(bitmap)
+        }
+    }
+
+    private val imagePicker = registerForActivityResult(PickImage()) { selectedImage ->
+        if (selectedImage != null) fetchImagesByImageUri(selectedImage)
+    }
 
     companion object {
+        val TAG: String = MainActivity::class.java.simpleName
         private var viewPool: PrefetchRecycledViewPool? = null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.main_activity)
         setSupportActionBar(searchToolBar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
@@ -86,6 +111,27 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         image_list_rv.addOnScrollListener(getImageScrollListener(layoutManager))
     }
 
+    private suspend fun fetchImagesByBitmap(bitmap: Bitmap) = withContext(Dispatchers.IO) {
+        val compressedImageFile = CacheWorker.getTempFile()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 85, tempFile.outputStream())
+        withContext(Dispatchers.Main) {
+            viewModel.fetchImagesByImage(compressedImageFile.path)
+        }
+    }
+
+    private fun fetchImagesByImageUri(image: Uri) {
+        val pfd = contentResolver.openFileDescriptor(image, "r")
+        if (pfd == null) {
+            Log.e(TAG, "Could not read selected image: $image")
+            shortToast(R.string.selected_image_could_not_read)
+            return
+        }
+
+        BitmapUtils.getSimplifiedBitmap(pfd.fileDescriptor, 200, 200) { bitmap ->
+            bitmap?.let { fetchImagesByBitmap(it) }
+        }
+    }
+
     private fun setupViewPool() {
         if (viewPool == null) {
             viewPool = PrefetchRecycledViewPool(this).apply {
@@ -110,14 +156,14 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
         viewModel.captchaEvent.observe(this, {
             it.getContentIfNotHandled()?.let { imageUrl ->
-                val dialog = CaptchaDialog.getInstance(
+                val dialog = CaptchaDialog.newInstance(
                     imageUrl = imageUrl,
                     showFailedMsg = it.isRepeatEvent
                 ) { captchaValue ->
                     it.setResult(captchaValue)
                 }
 
-                dialog.show(supportFragmentManager.beginTransaction(), CaptchaDialog.tag)
+                dialog.show(supportFragmentManager.beginTransaction(), CaptchaDialog.TAG)
             }
         })
 
@@ -158,9 +204,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
     override fun onQueryTextSubmit(query: String?): Boolean {
         if (query != null) {
-            hideKeyboard(this, searchView)
             searchView.clearFocus()
-            viewModel.fetchImagesOnQuery(query)
+            if (URLUtil.isHttpUrl(query) || URLUtil.isHttpsUrl(query)) {
+                viewModel.fetchImagesByImageUrl(query)
+            } else {
+                viewModel.fetchImagesOnQuery(query)
+            }
         }
 
         return true
@@ -180,6 +229,16 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         return when (item.itemId) {
             R.id.settings -> {
                 SettingsActivity.start(this)
+                true
+            }
+
+            R.id.btn_pick_image -> {
+                imagePicker.launch(null)
+                true
+            }
+
+            R.id.btn_image_capture -> {
+                photographer.launch(CacheWorker.getTempFile().also { tempFile = it })
                 true
             }
 

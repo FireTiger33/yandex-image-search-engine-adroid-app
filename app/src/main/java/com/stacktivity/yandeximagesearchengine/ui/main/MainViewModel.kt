@@ -8,9 +8,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.stacktivity.yandeximagesearchengine.util.CacheWorker
 import com.stacktivity.yandeximagesearchengine.util.YandexImageUtil
-import com.stacktivity.yandeximagesearchengine.util.NetworkStateReceiver
 import com.stacktivity.yandeximagesearchengine.data.ImageItem
 import com.stacktivity.yandeximagesearchengine.data.MainRepository
+import com.stacktivity.yandeximagesearchengine.data.NetworkRepository
 import com.stacktivity.yandeximagesearchengine.data.YandexRepository
 import com.stacktivity.yandeximagesearchengine.data.model.Blocks
 import com.stacktivity.yandeximagesearchengine.data.model.YandexResponse
@@ -39,6 +39,7 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private var numLoadedPages: Int = 0
     private var currentQuery: String = ""
     private var isLastPage = false
+    private var isSearchByImage = false
 
     private val imageLoader = BufferedImageLoader
     private val imageItemLoader = BufferedImageItemLoader()
@@ -64,11 +65,25 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     }
 
     fun fetchImagesOnQuery(query: String) {
-        isLastPage = false
-        numLoadedPages = 0
+        reset()
+        isSearchByImage = false
         currentQuery = query
-        imageLoader.removeAllTasks()
-        imageItemLoader.removeAllTasks()
+        fetchImagesOnNextPage()
+    }
+
+    fun fetchImagesByImage(imagePath: String) {
+        reset()
+        _dataLoading.value = true  // TODO сделать отдельно для отправки изображения
+        NetworkRepository.getFileUrl(imagePath) { url ->
+            _dataLoading.value = false
+            fetchImagesByImageUrl(url)
+        }
+    }
+
+    fun fetchImagesByImageUrl(imageUrl: String) {
+        reset()
+        isSearchByImage = true
+        currentQuery = imageUrl
         fetchImagesOnNextPage()
     }
 
@@ -97,21 +112,37 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
     private fun fetchImages(query: String, page: Int) {
         // start loading
         _dataLoading.value = true
-        YandexRepository.getInstance()
-            .getImageData(query, page) { isSuccess, response: YandexResponse? ->
+        val repo = YandexRepository.getInstance()
+
+        if (isSearchByImage) {
+            repo.getImageDataByImage(query, page) { isSuccess, response: YandexResponse? ->
                 // loading complete
-                if (isSuccess) {
-                    response?.blocks?.let {
-                        val isNewQuery = page == 0
-                        onFetchComplete(it[0], isNewQuery) {
-                            _dataLoading.value = false
-                            _newQueryIsLoaded.value = isNewQuery
-                        }
-                    } ?: kotlin.run {
-                        isLastPage = true
-                    }
-                }
+                _dataLoading.value = false
+                applyImagesFetchResult(isSuccess, response, page == 0)
             }
+        } else {
+            repo.getImageData(query, page) { isSuccess, response: YandexResponse? ->
+                // loading complete
+                _dataLoading.value = false
+                applyImagesFetchResult(isSuccess, response, page == 0)
+            }
+        }
+    }
+
+    private fun applyImagesFetchResult(
+        isSuccess: Boolean,
+        response: YandexResponse?,
+        isNewQuery: Boolean
+    ) {
+        if (isSuccess) {
+            response?.blocks?.let {
+                onFetchComplete(it[0], isNewQuery) {
+                    _newQueryIsLoaded.value = isNewQuery
+                }
+            } ?: kotlin.run {
+                isLastPage = true
+            }
+        }
     }
 
     private fun onFetchComplete(imageBlock: Blocks, isNewQuery: Boolean, onSuccess: () -> Unit) {
@@ -149,6 +180,13 @@ class MainViewModel : ViewModel(), YandexRepository.CaptchaEventListener {
                 adapter!!.notifyItemRangeInserted(itemCount, MainContentProvider.getItemCount() - 1)
             }
         }
+    }
+
+    private fun reset() {
+        isLastPage = false
+        numLoadedPages = 0
+        imageLoader.removeAllTasks()
+        imageItemLoader.removeAllTasks()
     }
 
     companion object {

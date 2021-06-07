@@ -23,6 +23,10 @@
         Проверьте подключение к интернету.</string>
     <string name="need_enter_captcha">Требуется ввести капчу</string>
     <string name="unexpected_error">Произошла непредиденная ошибка</string>
+    
+    <!--File system errors -->
+    <string name="selected_image_could_not_read">Не удалось прочитать выбранное изображение.
+        Возможно оно было перемещено или удалено</string>
 
     <!-- Captcha -->
     <string name="captcha">Капча</string>

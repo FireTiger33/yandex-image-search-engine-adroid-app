@@ -21,6 +21,19 @@ interface ApiService {
         @Query("text") search: String
     ): Call<YandexResponse>
 
+
+    @GET("images/search")
+    fun getJSONSearchResultOnImage(
+        @Query("format") format: String = "json",
+        @Query("request") add: String = YandexResponse.builder,
+        @Query("yu") yu: String = "1778190371562362282",
+        @Query("p") page: Int = 0,
+        @Query("rpt") rpt: String = "imageview",
+        @Query("source") source: String = "collections",
+        @Query("cbir_page") cbir: String = "similar",
+        @Query("url") url: String
+    ): Call<YandexResponse>
+
     @GET("{path}")
     fun getHtml(
         @Path(value = "path", encoded = true) path: String,

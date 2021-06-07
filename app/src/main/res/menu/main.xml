@@ -7,4 +7,16 @@
         android:title="@string/title_settings"
         app:showAsAction="never" />
 
+    <item android:id="@+id/btn_search_by_image"
+        android:title="Поиск по изображению" >
+
+        <menu>
+            <item
+                android:id="@+id/btn_pick_image"
+                android:title="Выбрать изображение"/>
+            <item android:id="@+id/btn_image_capture"
+                android:title="Сделать фото" />
+        </menu>
+    </item>
+
 </menu>
