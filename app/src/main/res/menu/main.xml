@@ -8,14 +8,14 @@
         app:showAsAction="never" />
 
     <item android:id="@+id/btn_search_by_image"
-        android:title="Поиск по изображению" >
+        android:title="@string/search_by_image" >
 
         <menu>
             <item
                 android:id="@+id/btn_pick_image"
-                android:title="Выбрать изображение"/>
+                android:title="@string/pick_image"/>
             <item android:id="@+id/btn_image_capture"
-                android:title="Сделать фото" />
+                android:title="@string/take_photo" />
         </menu>
     </item>
 
