@@ -12,10 +12,7 @@ interface ApiService {
     @GET("images/search")
     fun getJSONSearchResult(
         @Query("format") format: String = "json",
-        @Query("request") add: String = "{\"blocks\":[{\"block\":\"serp-list_infinite_yes\"" +
-                ",\"params\":{\"initialPageNum\":0},\"version\":2}]" +
-                ",\"bmt\":{\"lb\":\"70xek^jjDN({yjI=52Fx\"}" +
-                ",\"amt\":{\"las\":\"justifier-height=1;thumb-underlay=1;justifier-setheight=1;fitimages-height=1;justifier-fitincuts=1\"}}",
+        @Query("request") add: String = YandexResponse.builder,
         @Query("yu") yu: String = "1778190371562362282",
         @Query("p") page: Int = 0,
         @Query("text") search: String
