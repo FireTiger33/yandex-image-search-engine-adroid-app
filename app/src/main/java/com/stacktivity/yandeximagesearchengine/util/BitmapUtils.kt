@@ -8,7 +8,8 @@ import android.util.Log
 import com.stacktivity.yandeximagesearchengine.data.ColorPixel
 import kotlinx.coroutines.*
 import java.io.File
-import java.nio.ByteBuffer
+import java.io.FileDescriptor
+import java.io.FileInputStream
 
 object BitmapUtils {
 
@@ -93,11 +94,21 @@ object BitmapUtils {
         return getImageFormat(headerBuff)
     }
 
+    fun getSimplifiedBitmap (
+        imagePath: String,
+        reqWidth: Int = -1, reqHeight: Int = -1,
+        onResult: suspend (Bitmap?) -> Unit
+    ) = getSimplifiedBitmap(
+        FileInputStream(File(imagePath)).fd,
+        reqWidth, reqHeight,
+        onResult
+    )
+
     /**
      * Simplifies Bitmap to desired resolution
      */
-    suspend fun getSimplifiedBitmap(
-        imagePath: String,
+    fun getSimplifiedBitmap(
+        imageDescriptor: FileDescriptor,
         reqWidth: Int = -1, reqHeight: Int = -1,
         onResult: suspend (Bitmap?) -> Unit
     ) = CoroutineScope(SupervisorJob()).launch(Dispatchers.IO) {
@@ -112,7 +123,7 @@ object BitmapUtils {
         }
 
         options.inJustDecodeBounds = true
-        BitmapFactory.decodeFile(imagePath, options)
+        BitmapFactory.decodeFileDescriptor(imageDescriptor, null, options)
         if (options.outMimeType == null) {
             onResult(null)
             return@launch
@@ -132,7 +143,7 @@ object BitmapUtils {
         options.inJustDecodeBounds = false
 
         try {
-            onResult(BitmapFactory.decodeFile(imagePath, options))
+            onResult(BitmapFactory.decodeFileDescriptor(imageDescriptor, null, options))
         } catch (e: OutOfMemoryError) {
             onResult(null)
         }
@@ -198,7 +209,7 @@ object BitmapUtils {
     }
 
     /**
-     * Use for getting [Bitmap] from [ByteBuffer]
+     * Use for getting [Bitmap] from [ByteArray]
      * with ability to get a smaller image if needed.
      * If you try to get a larger image, original image will be returned.
      *
