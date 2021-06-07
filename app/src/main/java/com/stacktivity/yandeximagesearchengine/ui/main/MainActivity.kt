@@ -63,7 +63,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         supportActionBar?.setDisplayShowTitleEnabled(false)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
 
-        initUI(savedInstanceState)
+        // checking open with intent
+        val imageUri = intent.data ?: intent.extras?.get(Intent.EXTRA_STREAM) as Uri?
+        imageUri?.let { fetchImagesByImageUri(it) }
+
+        val showKeyboard = if (imageUri != null) false else savedInstanceState == null
+        initUI(savedInstanceState, showKeyboard)
     }
 
     override fun onStop() {
@@ -71,12 +76,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         super.onStop()
     }
 
-    private fun initUI(savedInstanceState: Bundle?) {
+    private fun initUI(savedInstanceState: Bundle?, showKeyboard: Boolean) {
         setupSearchView(
-            setFocus = savedInstanceState == null,
+            setFocus = showKeyboard,
             savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
         )
-        setupImageList()
+        setupImageList(savedInstanceState)
         setupObservers()
     }
 
