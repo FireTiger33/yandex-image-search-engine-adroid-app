@@ -31,29 +31,24 @@ class MainRepository {
         return res
     }
 
-    fun loadAddImageList(index: Int, onAsyncResult: (success: Boolean, errorMsg: String?) -> Unit) {
-        val possibleSource: String = imageList[index]?.sourceSite ?: run {
+    fun loadAddImageList(index: Int, onAsyncResult: (success: Boolean, errorMsg: String?) -> Unit) {  // TODO to make network repo
+        val sourceSite: String = imageList[index]?.sourceSite ?: run {
             onAsyncResult(false, "Item with index $index does not exist")
+            return
+        }
+        val yandexCollectionsRegex = Regex("yandex.+?/collections")
+        if (yandexCollectionsRegex.containsMatchIn(sourceSite)) {
+            onAsyncResult(false, "YandexCollections are back")
             return
         }
 
         if (addImageMapList[index] != null) {
             onAsyncResult(true, null)
         } else {
-
-            YandexRepository.getInstance()
-                .getImageRealSourceSite(possibleSource) { realSource, errorMsg ->
-
-                    if (realSource != null) {
-                        imageList[index]?.sourceSite = realSource
-                        ImageParser.getUrlListToImages(realSource) { urls ->
-                            addImageMapList[index] = ArrayList(urls)
-                            onAsyncResult(true, null)
-                        }
-                    } else {
-                        onAsyncResult(false, errorMsg)
-                    }
-                }
+            ImageParser.getUrlListToImages(sourceSite) { urls ->
+                addImageMapList[index] = ArrayList(urls)
+                onAsyncResult(true, null)
+            }
         }
     }
 
