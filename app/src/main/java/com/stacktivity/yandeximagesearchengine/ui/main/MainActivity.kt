@@ -6,6 +6,7 @@ import android.graphics.Point
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.View
 import android.view.Menu
@@ -18,18 +19,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.stacktivity.yandeximagesearchengine.util.prefetcher.PrefetchRecycledViewPool
 import com.stacktivity.yandeximagesearchengine.R
+import com.stacktivity.yandeximagesearchengine.ui.dialog.UserImageProviderDialog
 import com.stacktivity.yandeximagesearchengine.ui.settings.SettingsActivity
 import com.stacktivity.yandeximagesearchengine.ui.captcha.CaptchaDialog
 import com.stacktivity.yandeximagesearchengine.util.shortToast
 import com.stacktivity.yandeximagesearchengine.util.BitmapUtils
 import com.stacktivity.yandeximagesearchengine.util.CacheWorker
 import com.stacktivity.yandeximagesearchengine.util.Constants
-import com.stacktivity.yandeximagesearchengine.util.PickImage
-import com.stacktivity.yandeximagesearchengine.util.TakePictureToPrivateFile
 import com.stacktivity.yandeximagesearchengine.util.ToolbarDemonstrator
 import kotlinx.android.synthetic.main.main_activity.*
 import kotlinx.coroutines.*
-import java.io.File
 
 
 private const val KEY_QUERY = "query"
@@ -38,17 +37,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     private val viewModel: MainViewModel = MainViewModel.getInstance()
     private lateinit var searchView: SearchView
     private var showedMenu: PopupMenu? = null
-    private lateinit var tempFile: File
-
-    private val photographer = registerForActivityResult(TakePictureToPrivateFile()) {
-        if (it) BitmapUtils.getSimplifiedBitmap(tempFile.path, 200, 200) { bitmap ->
-            if (bitmap != null) fetchImagesByBitmap(bitmap)
-        }
-    }
-
-    private val imagePicker = registerForActivityResult(PickImage()) { selectedImage ->
-        if (selectedImage != null) fetchImagesByImageUri(selectedImage)
-    }
 
     companion object {
         val TAG: String = MainActivity::class.java.simpleName
@@ -77,6 +65,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
     }
 
     private fun initUI(savedInstanceState: Bundle?, showKeyboard: Boolean) {
+        setupSearchByImage()
         setupSearchView(
             setFocus = showKeyboard,
             savedQuery = savedInstanceState?.getString(KEY_QUERY, "")
@@ -100,7 +89,20 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         }
     }
 
-    private fun setupImageList() {
+    private fun setupSearchByImage() {
+        btn_search_by_image.setOnClickListener {
+            val requestKey = "imageUri"
+            UserImageProviderDialog().show(supportFragmentManager, requestKey)
+            supportFragmentManager.setFragmentResultListener(requestKey, this) { _, result ->
+                val imagePfd = result.getParcelable<ParcelFileDescriptor>("pfd")
+                BitmapUtils.getSimplifiedBitmap(imagePfd!!.fileDescriptor, 200, 200) { bitmap ->
+                    bitmap?.let { fetchImagesByBitmap(it) }
+                }
+            }
+        }
+    }
+
+    private fun setupImageList(savedInstanceState: Bundle?) {
         val size = Point()
         windowManager.defaultDisplay.getSize(size)
         val maxImageWidth = size.x
@@ -118,7 +120,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
     private suspend fun fetchImagesByBitmap(bitmap: Bitmap) = withContext(Dispatchers.IO) {
         val compressedImageFile = CacheWorker.getTempFile()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 85, tempFile.outputStream())
+        bitmap.compress(Bitmap.CompressFormat.PNG, 85, compressedImageFile.outputStream())
         withContext(Dispatchers.Main) {
             viewModel.fetchImagesByImage(compressedImageFile.path)
         }
@@ -234,16 +236,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
         return when (item.itemId) {
             R.id.settings -> {
                 SettingsActivity.start(this)
-                true
-            }
-
-            R.id.btn_pick_image -> {
-                imagePicker.launch(null)
-                true
-            }
-
-            R.id.btn_image_capture -> {
-                photographer.launch(CacheWorker.getTempFile().also { tempFile = it })
                 true
             }
 

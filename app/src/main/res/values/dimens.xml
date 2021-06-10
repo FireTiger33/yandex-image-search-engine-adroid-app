@@ -11,4 +11,9 @@
     <dimen name="progressbar_default_size">64dp</dimen>
 
     <dimen name="padding_title">8dp</dimen>
+
+    <!-- Material menu -->
+    <dimen name="menu_item_horizontal_padding">16dp</dimen>
+    <dimen name="menu_item_drawable_padding">16dp</dimen>
+    <dimen name="menu_single_line_height">48dp</dimen>
 </resources>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="?attr/colorPrimary"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/menu_single_line_height"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/padding_title"
+        android:text="@string/search_by_image"
+        android:textColor="@color/colorImagePreview"/>
+
+    <TextView
+        android:id="@+id/btn_image_capture"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/menu_single_line_height"
+        android:background="?attr/selectableItemBackground"
+        android:drawablePadding="@dimen/menu_item_drawable_padding"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/menu_item_horizontal_padding"
+        android:text="@string/take_photo"
+        app:drawableStartCompat="@drawable/ic_camera_24" />
+
+    <TextView
+        android:id="@+id/btn_pick_image"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/menu_single_line_height"
+        android:background="?attr/selectableItemBackground"
+        android:drawablePadding="@dimen/menu_item_drawable_padding"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/menu_item_horizontal_padding"
+        android:text="@string/pick_image"
+        app:drawableStartCompat="@drawable/ic_image_burst_24" />
+
+</LinearLayout>

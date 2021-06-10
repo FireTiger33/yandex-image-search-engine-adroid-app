@@ -42,11 +42,18 @@
         style="@style/Toolbar"
         android:layout_alignParentBottom="true">
 
+        <Button
+            android:id="@+id/btn_search_by_image"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/ic_visual_search_white" />
+
         <androidx.appcompat.widget.SearchView
             android:id="@+id/search"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:queryHint="@string/hint_search"
+            app:searchHintIcon="@null"
             android:showAsAction="always"
             android:imeOptions="flagNoExtractUi" />
 
