@@ -32,7 +32,6 @@ import kotlinx.android.synthetic.main.image_action_buttons.view.*
 import kotlinx.android.synthetic.main.image_with_progress_bar.view.*
 
 import pl.droidsonroids.gif.GifDrawable
-import pl.droidsonroids.gif.GifImageView
 
 import java.lang.ref.WeakReference
 
@@ -41,6 +40,7 @@ class ImageDialog : DialogFragment() {
     private var thumb by fragmentArgs<String?>()
     private var previewIsNeeded = true
     private var imageLoader: ImageDataDownloader? = null
+    private var btnHeight: Int? = null
 
     companion object {
         val mTag: String = ImageDialog::class.java.simpleName
@@ -58,9 +58,13 @@ class ImageDialog : DialogFragment() {
         val view = inflater.inflate(image_dialog, container, false)
 
         setClickListeners(view)
+        enableButtons(view, false)
 
         view.post {
-            val viewRef = WeakReference(view.imageView)
+
+            val viewRef = WeakReference(view)
+
+            showProgressBar(view)
 
             // download image
             imageLoader = ImageDataDownloader(mImageData, mTag, getImageObserver(viewRef))
@@ -72,19 +76,16 @@ class ImageDialog : DialogFragment() {
                     .download()
             }
 
-            showProgressBar()
-            enableButtons(false)
+            btnHeight = view.btn_send.height
             prepareView(mImageData.width, mImageData.height)
         }
 
         return view
     }
 
-    private fun enableButtons(enable: Boolean) {
-        view?.let {
-            it.btn_open.isEnabled = enable
-            it.btn_send.isEnabled = enable
-        }
+    private fun enableButtons(rootView: View, enable: Boolean) {
+        rootView.btn_open.isEnabled = enable
+        rootView.btn_send.isEnabled = enable
     }
 
     private fun setClickListeners(rootView: View) {
@@ -114,15 +115,24 @@ class ImageDialog : DialogFragment() {
         super.onDestroy()
     }
 
-    private fun onImageLoadComplete(imageWidth: Int, imageHeight: Int) {
-        prepareImageViewIfDifferentSize(imageWidth, imageHeight)
-        hideProgressBar()
-        enableButtons(true)
+    private fun onImageLoadComplete(rootView: View, imageWidth: Int, imageHeight: Int) {
+        prepareView(imageWidth, imageHeight, true)
+        hideProgressBar(rootView)
+        enableButtons(rootView, true)
     }
 
-    private fun prepareView(imageWidth: Int, imageHeight: Int) {
+
+    /**
+     * Used to adjust the size of the view,
+     * taking into account size of the image being placed,
+     * to use the maximum available window sizes.
+     * It must be called before the image is inserted and when the first changes are applied.
+     *
+     * TODO Requires further development.
+     */
+    private fun prepareView(imageWidth: Int, imageHeight: Int, pref: Boolean = false) {
         view?.let {
-            val possibleImageHeight = it.height - it.btn_send.height
+            val possibleImageHeight = it.height - btnHeight!!
             val possibleImageWidth = it.width
 
             it.imageView.run {
@@ -131,63 +141,63 @@ class ImageDialog : DialogFragment() {
                 if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
                     val calcWidth =
                         ViewUtils.calculateViewWidth(possibleImageHeight, imageWidth, imageHeight)
-                    layoutParams.width = calcWidth
-                    layoutParams.height = possibleImageHeight
                     val cropFactor = calcWidth / possibleImageWidth.toFloat()
+
+                    setLayout(calcWidth, possibleImageHeight)
                     setTextSize(it, cropFactor)
                 } else {
                     val calcHeight =
                         ViewUtils.calculateViewHeight(possibleImageWidth, imageWidth, imageHeight)
-                    layoutParams.height = calcHeight
-                    layoutParams.width = possibleImageWidth
+
+                    if (calcHeight > possibleImageHeight && pref) {
+                        val cropFactor = calcHeight / possibleImageHeight.toFloat()
+                        val resWidth = (possibleImageWidth / cropFactor).toInt()
+                        setLayout(resWidth, possibleImageHeight)
+                    } else {
+                        setLayout(possibleImageWidth, calcHeight)
+                    }
                 }
             }
             it.requestLayout()
         }
     }
 
-    private fun prepareImageViewIfDifferentSize(imageWidth: Int, imageHeight: Int) {
-        if (mImageData.width != imageWidth || mImageData.height != imageHeight) {
-            prepareView(imageWidth, imageHeight)
-        }
+    private fun showProgressBar(rootView: View) {
+        rootView.image_load_progress_bar?.visibility = View.VISIBLE
     }
 
-    private fun showProgressBar() {
-        view?.image_load_progress_bar?.visibility = View.VISIBLE
+    private fun hideProgressBar(rootView: View) {
+        rootView.image_load_progress_bar?.visibility = View.GONE
     }
 
-    private fun hideProgressBar() {
-        view?.image_load_progress_bar?.visibility = View.GONE
-    }
-
-    private fun getPreviewImageObserver(imageView: WeakReference<GifImageView>): BitmapObserver {
+    private fun getPreviewImageObserver(rootView: WeakReference<View>): BitmapObserver {
         return object : BitmapObserver {
             override fun onBitmapResult(bitmap: Bitmap) {
                 if (previewIsNeeded) {
-                    imageView.get()?.setImageBitmap(blur(bitmap))
+                    rootView.get()?.imageView?.setImageBitmap(blur(bitmap))
                 }
             }
         }
     }
 
-    private fun getImageObserver(imageView: WeakReference<GifImageView>): ImageObserver {
+    private fun getImageObserver(rootView: WeakReference<View>): ImageObserver {
         return object : ImageObserver {
             override fun onGifResult(drawable: GifDrawable, width: Int, height: Int) {
                 previewIsNeeded = false
-                imageView.get()?.let {
-                    onImageLoadComplete(width, height)
-                    it.setImageDrawable(drawable)
+                rootView.get()?.let {
+                    onImageLoadComplete(it, width, height)
+                    it.imageView.setImageDrawable(drawable)
                 }
             }
 
             override fun onBitmapResult(bitmap: Bitmap) {
                 previewIsNeeded = false
-                imageView.get()?.let {
-                    onImageLoadComplete(bitmap.width, bitmap.height)
+                rootView.get()?.let {
+                    onImageLoadComplete(it, bitmap.width, bitmap.height)
                     if (bitmap.width <= it.width) {
-                        it.setImageBitmap(bitmap)
+                        it.imageView.setImageBitmap(bitmap)
                     } else {
-                        it.setImageBitmap(
+                        it.imageView.setImageBitmap(
                             Bitmap.createScaledBitmap(bitmap, it.width, it.height, false)
                         )
                     }
@@ -226,4 +236,9 @@ class ImageDialog : DialogFragment() {
             }
         }
     }
+}
+
+private fun View.setLayout(width: Int, height: Int) {
+    layoutParams.width = width
+    layoutParams.height = height
 }

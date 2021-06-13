@@ -8,7 +8,7 @@
         android:id="@+id/imageView"
         android:layout_width="match_parent"
         android:layout_height="200dp"
-        android:scaleType="fitCenter"
+        android:scaleType="centerCrop"
         android:layout_gravity="center"
         android:src="@color/colorImagePreview" />
 
