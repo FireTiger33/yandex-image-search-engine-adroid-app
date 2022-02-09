@@ -71,14 +71,20 @@ class ImageParser {
             var res = str
             val unicodeRegex = Regex("\\\\u[a-fA-f0-9]{4}")
             val hexItems: MutableSet<String> = HashSet()
+
+            // find characters in hex representation
             unicodeRegex.findAll(res).forEach { matchResult ->
                 hexItems.add(matchResult.value)
             }
 
+            // converting characters from hex representation to normal form
             hexItems.forEach { unicodeHex ->
                 val hexVal = unicodeHex.substring(2).toInt(16)
                 res = res.replace(unicodeHex, "" + hexVal.toChar())
             }
+
+            // deleting whitespaces
+            res = res.replace(Regex("\\s+"), "")
 
             return res
         }
